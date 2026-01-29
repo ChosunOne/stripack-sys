@@ -26,6 +26,27 @@ unsafe extern "C" {
         z: *mut c_double,
     );
 
+    /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
+    ///
+    /// # Arguments
+    /// * `px`, `py`, `pz` - Input. The coordinates of `p`
+    /// * `plat` - Output. The latitude of `p` in the range `-PI/2` to `PI/2`, or `0` if `pnrm = 0`.
+    /// * `plon` - Output. The longitude of `p` in the range `-PI` to `PI`, or `0` if `p` lies on the
+    /// Z-axis.
+    /// * `pnrm` - Output. The magnitude (Euclidean norm) of `p`.
+    ///
+    /// # Safety
+    /// - All pointers must be valid and properly aligned
+    #[link_name = "scoord_"]
+    pub fn scoord(
+        px: *const c_double,
+        py: *const c_double,
+        pz: *const c_double,
+        plat: *mut c_double,
+        plon: *mut c_double,
+        pnrm: *mut c_double,
+    );
+
     /// Computes the area of a spherical triangle on the unit sphere.
     ///
     /// # Arguments
@@ -110,5 +131,44 @@ mod test {
             (area - expected_area).abs() < f64::EPSILON,
             "expected {expected_area} got {area}"
         );
+    }
+
+    #[rstest]
+    #[case(1.0, 0.0, 0.0, 0.0, 0.0, 1.0)]
+    #[case(0.0, 1.0, 0.0, 0.0, FRAC_PI_2, 1.0)]
+    #[case(-1.0, 0.0, 0.0, 0.0, PI, 1.0)]
+    #[case(0.0, -1.0, 0.0, 0.0, -FRAC_PI_2, 1.0)]
+    #[case(0.0, 0.0, 1.0, FRAC_PI_2, 0.0, 1.0)]
+    #[case(0.0, 0.0, -1.0, -FRAC_PI_2, 0.0, 1.0)]
+    #[case(FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0, 0.0, FRAC_PI_4, 1.0)]
+    #[case(0.5, 0.5, FRAC_1_SQRT_2, FRAC_PI_4, FRAC_PI_4, 1.0)]
+    #[case(2.0, 0.0, 0.0, 0.0, 0.0, 2.0)]
+    #[case(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)]
+    fn test_scoord(
+        #[case] px: f64,
+        #[case] py: f64,
+        #[case] pz: f64,
+        #[case] expected_plat: f64,
+        #[case] expected_plon: f64,
+        #[case] expected_pnrm: f64,
+    ) {
+        let mut plat = 0.0;
+        let mut plon = 0.0;
+        let mut pnrm = 0.0;
+
+        unsafe {
+            scoord(
+                &raw const px,
+                &raw const py,
+                &raw const pz,
+                &raw mut plat,
+                &raw mut plon,
+                &raw mut pnrm,
+            );
+        };
+
+        assert!((expected_plat - plat).abs() < f64::EPSILON);
+        assert!((expected_plon - plon).abs() < f64::EPSILON);
+        assert!((expected_pnrm - pnrm).abs() < f64::EPSILON);
     }
 }

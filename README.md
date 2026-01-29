@@ -1,4 +1,3 @@
-```markdown
 # stripack-sys
 
 Raw Rust FFI bindings to STRIPACK, a Fortran library for Delaunay triangulation and Voronoi diagrams on the unit sphere.
@@ -37,4 +36,3 @@ The bundled Fortran code is distributed under the GNU LGPL. See [fortran/LICENSE
 - DOI: [10.1145/275323.275329](https://doi.org/10.1145/275323.275329)
 
 The Fortran 90 version used in this crate was prepared by [John Burkardt](https://people.sc.fsu.edu/~jburkardt/f_src/stripack/stripack.html) and is distributed under the GNU LGPL.
-```

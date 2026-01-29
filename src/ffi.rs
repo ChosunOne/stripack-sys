@@ -1,6 +1,68 @@
 use std::ffi::{c_double, c_int};
 
 unsafe extern "C" {
+    /// Computes the area of a spherical triangle on the unit sphere.
+    ///
+    /// # Arguments
+    /// * `v1[3]`, `v2[3]`, `v3[3]` - Input. The Cartesian coordinates of unit vectors (the three triangle
+    ///   vertices in any order). These vectors, if nonzero, are implicitly scaled to have length `1`.
+    ///
+    /// # Returns
+    /// The area of the spherical triangle defined by `v1`, `v2`, and `v3`, in the range `0` to
+    /// `2*PI` (the area of a hemisphere). `0` if and only if `v1`, `v2`, and `v3` lie in (or close to)
+    /// a plane containing the origin.
+    ///
+    /// # Safety
+    /// - All pointers must be valid and properly aligned
+    /// - Arrays `v1`, `v2`, `v3` must have length == `3`
+    #[link_name = "areas_"]
+    pub fn areas(v1: *const c_double, v2: *const c_double, v3: *const c_double) -> c_double;
+
+    /// Returns the boundary nodes of a triangulation. Given a triangulation of `n` nodes on the
+    /// unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure
+    ///   defining the triangulation, created by `trmesh`.
+    /// * `nodes` - Output. The ordered sequence of `nb` boundary node indexes in the range `1` to `n`.
+    ///   For safety, the dimension of `nodes` should be `n`.
+    /// * `nb` - Output. The number of boundary nodes.
+    ///   `na`, `nt` - Output. The number of arcs and triangles, repectively, in the triangulation.
+    #[link_name = "bnodes_"]
+    pub fn bnodes(
+        n: *const c_int,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        nodes: *mut c_int,
+        nb: *mut c_int,
+        na: *mut c_int,
+        nt: *mut c_int,
+    );
+
+    /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
+    ///
+    /// # Arguments
+    /// * `px`, `py`, `pz` - Input. The coordinates of `p`
+    /// * `plat` - Output. The latitude of `p` in the range `-PI/2` to `PI/2`, or `0` if `pnrm = 0`.
+    /// * `plon` - Output. The longitude of `p` in the range `-PI` to `PI`, or `0` if `p` lies on the
+    ///   Z-axis.
+    /// * `pnrm` - Output. The magnitude (Euclidean norm) of `p`.
+    ///
+    /// # Safety
+    /// - All pointers must be valid and properly aligned
+    #[link_name = "scoord_"]
+    pub fn scoord(
+        px: *const c_double,
+        py: *const c_double,
+        pz: *const c_double,
+        plat: *mut c_double,
+        plon: *mut c_double,
+        pnrm: *mut c_double,
+    );
+
     /// Transform spherical coordinates into Cartesian coordinates
     /// on the unit sphere for input to `trmesh`. Storage for X and Y
     /// may coincide with storage for `rlat` and `rlon` if the latter
@@ -26,43 +88,38 @@ unsafe extern "C" {
         z: *mut c_double,
     );
 
-    /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
+    /// Convert a triangulation data structure into a triangle list.
     ///
     /// # Arguments
-    /// * `px`, `py`, `pz` - Input. The coordinates of `p`
-    /// * `plat` - Output. The latitude of `p` in the range `-PI/2` to `PI/2`, or `0` if `pnrm = 0`.
-    /// * `plon` - Output. The longitude of `p` in the range `-PI` to `PI`, or `0` if `p` lies on the
-    ///   Z-axis.
-    /// * `pnrm` - Output. The magnitude (Euclidean norm) of `p`.
-    ///
-    /// # Safety
-    /// - All pointers must be valid and properly aligned
-    #[link_name = "scoord_"]
-    pub fn scoord(
-        px: *const c_double,
-        py: *const c_double,
-        pz: *const c_double,
-        plat: *mut c_double,
-        plon: *mut c_double,
-        pnrm: *mut c_double,
+    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    /// * `list`, `lptr`, `lend` - Input. Linked list data structure defining the triangulation.
+    /// * `nrow` - Input. The number of rows (entries per triangle) reserved for the triangle list `ltri`. The
+    ///   value must be 6 if only the vertex indexes and neighboring triangle indexes are to be stored, or
+    ///   if arc indexes are also to be assigned and stored. Refer to `ltri`.
+    /// * `nt` - Output. The number of triangles in the triangulation unless `ier /= 0`, which
+    ///   in case `nt = 0`. `nt = 2n - nb - 2` if `nb >= 3` or `2n-4` if `nb = 0`, where `nb` is the
+    ///   number of boundary nodes.
+    /// * `ltri` - Output. The second dimension of `ltri` must be at least `nt`, where `nt` will be at
+    ///   most `2*n - 4`. The `j`-th column contains the vertex nodal indexes (first three rows),
+    ///   neighboring triangle indxes (second three rows), and, if `nrow = 9`, arc indexes (last three
+    ///   rows) associated with triangle `j` for `j = 1, ..., nt`. The vertices are ordered counterclockwise
+    ///   with the first vertex taken to be the one with smallest index. Thus `ltri[2][j]` and `ltri[3][j]` are larger than `ltri[1, j]` and index adjacent neighbors of node `ltri[1][j]`. For `i = 1, 2, 3`, `ltri[i + 3][j]` and `ltri[i + 6][j]` index the triangle and arc, respectively, which are opposite (not shared by) node `ltri[i][j]`, with `ltri[i + 3, j] = 0` if `ltri[i + 6][j]` indexes a boundary arc. Vertex indexes range from `1` to `n`, triangle indexes from `0` to `nt`, and, if included, arc indexes from `1` to `na`, where `na = 3n - nb - 3` if `nb >= 3` or `3n - 6` if `nb = 0`. The triangles are ordered on first (smallest) vertex indexes.
+    /// * ier - Output. Error indicator.
+    ///   0, if no errors were encountered.
+    ///   1, if `n` or `nrow` is outside its valid range on input.
+    ///   2, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that
+    ///   these arrays are not completely tested for validity.
+    #[link_name = "trlist_"]
+    pub fn trlist(
+        n: *const c_int,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        nrow: *const c_int,
+        nt: *mut c_int,
+        ltri: *mut c_int,
+        ier: *mut c_int,
     );
-
-    /// Computes the area of a spherical triangle on the unit sphere.
-    ///
-    /// # Arguments
-    /// * `v1[3]`, `v2[3]`, `v3[3]` - Input. The Cartesian coordinates of unit vectors (the three triangle
-    ///   vertices in any order). These vectors, if nonzero, are implicitly scaled to have length `1`.
-    ///
-    /// # Returns
-    /// The area of the spherical triangle defined by `v1`, `v2`, and `v3`, in the range `0` to
-    /// `2*PI` (the area of a hemisphere). `0` if and only if `v1`, `v2`, and `v3` lie in (or close to)
-    /// a plane containing the origin.
-    ///
-    /// # Safety
-    /// - All pointers must be valid and properly aligned
-    /// - Arrays `v1`, `v2`, `v3` must have length == `3`
-    #[link_name = "areas_"]
-    pub fn areas(v1: *const c_double, v2: *const c_double, v3: *const c_double) -> c_double;
 
     /// Creates a Delaunay triangulation on the unit sphere.
     ///
@@ -166,62 +223,6 @@ unsafe extern "C" {
         ier: *mut c_int,
     );
 
-    /// Convert a triangulation data structure into a triangle list.
-    ///
-    /// # Arguments
-    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
-    /// * `list`, `lptr`, `lend` - Input. Linked list data structure defining the triangulation.
-    /// * `nrow` - Input. The number of rows (entries per triangle) reserved for the triangle list `ltri`. The
-    ///   value must be 6 if only the vertex indexes and neighboring triangle indexes are to be stored, or
-    ///   if arc indexes are also to be assigned and stored. Refer to `ltri`.
-    /// * `nt` - Output. The number of triangles in the triangulation unless `ier /= 0`, which
-    ///   in case `nt = 0`. `nt = 2n - nb - 2` if `nb >= 3` or `2n-4` if `nb = 0`, where `nb` is the
-    ///   number of boundary nodes.
-    /// * `ltri` - Output. The second dimension of `ltri` must be at least `nt`, where `nt` will be at
-    ///   most `2*n - 4`. The `j`-th column contains the vertex nodal indexes (first three rows),
-    ///   neighboring triangle indxes (second three rows), and, if `nrow = 9`, arc indexes (last three
-    ///   rows) associated with triangle `j` for `j = 1, ..., nt`. The vertices are ordered counterclockwise
-    ///   with the first vertex taken to be the one with smallest index. Thus `ltri[2][j]` and `ltri[3][j]` are larger than `ltri[1, j]` and index adjacent neighbors of node `ltri[1][j]`. For `i = 1, 2, 3`, `ltri[i + 3][j]` and `ltri[i + 6][j]` index the triangle and arc, respectively, which are opposite (not shared by) node `ltri[i][j]`, with `ltri[i + 3, j] = 0` if `ltri[i + 6][j]` indexes a boundary arc. Vertex indexes range from `1` to `n`, triangle indexes from `0` to `nt`, and, if included, arc indexes from `1` to `na`, where `na = 3n - nb - 3` if `nb >= 3` or `3n - 6` if `nb = 0`. The triangles are ordered on first (smallest) vertex indexes.
-    /// * ier - Output. Error indicator.
-    ///   0, if no errors were encountered.
-    ///   1, if `n` or `nrow` is outside its valid range on input.
-    ///   2, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that
-    ///   these arrays are not completely tested for validity.
-    #[link_name = "trlist_"]
-    pub fn trlist(
-        n: *const c_int,
-        list: *const c_int,
-        lptr: *const c_int,
-        lend: *const c_int,
-        nrow: *const c_int,
-        nt: *mut c_int,
-        ltri: *mut c_int,
-        ier: *mut c_int,
-    );
-
-    /// Returns the boundary nodes of a triangulation. Given a triangulation of `n` nodes on the
-    /// unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
-    ///
-    /// # Arguments
-    ///
-    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
-    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure
-    ///   defining the triangulation, created by `trmesh`.
-    /// * `nodes` - Output. The ordered sequence of `nb` boundary node indexes in the range `1` to `n`.
-    ///   For safety, the dimension of `nodes` should be `n`.
-    /// * `nb` - Output. The number of boundary nodes.
-    ///   `na`, `nt` - Output. The number of arcs and triangles, repectively, in the triangulation.
-    #[link_name = "bnodes_"]
-    pub fn bnodes(
-        n: *const c_int,
-        list: *const c_int,
-        lptr: *const c_int,
-        lend: *const c_int,
-        nodes: *mut c_int,
-        nb: *mut c_int,
-        na: *mut c_int,
-        nt: *mut c_int,
-    );
 }
 
 #[cfg(test)]

@@ -170,5 +170,39 @@ mod test {
         assert!((expected_plat - plat).abs() < f64::EPSILON);
         assert!((expected_plon - plon).abs() < f64::EPSILON);
         assert!((expected_pnrm - pnrm).abs() < f64::EPSILON);
+
+        let n = 1;
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut z = 0.0;
+
+        unsafe {
+            trans(
+                &raw const n,
+                &raw const plat,
+                &raw const plon,
+                &raw mut x,
+                &raw mut y,
+                &raw mut z,
+            );
+        };
+        if pnrm == 0.0 {
+            return;
+        }
+
+        let norm = (x * x + y * y + z * z).sqrt();
+
+        assert!(
+            (x / norm - px / pnrm).abs() < f64::EPSILON,
+            "expected: {px} got: {x}"
+        );
+        assert!(
+            (y / norm - py / pnrm).abs() < f64::EPSILON,
+            "expected: {py} got: {y}"
+        );
+        assert!(
+            (z / norm - pz / pnrm).abs() < f64::EPSILON,
+            "expected: {pz} got: {z}"
+        );
     }
 }

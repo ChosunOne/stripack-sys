@@ -198,11 +198,35 @@ unsafe extern "C" {
         ltri: *mut c_int,
         ier: *mut c_int,
     );
+
+    /// Returns the boundary nodes of a triangulation. Given a triangulation of `n` nodes on the
+    /// unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure
+    ///   defining the triangulation, created by `trmesh`.
+    /// * `nodes` - Output. The ordered sequence of `nb` boundary node indexes in the range `1` to `n`.
+    ///   For safety, the dimension of `nodes` should be `n`.
+    /// * `nb` - Output. The number of boundary nodes.
+    ///   `na`, `nt` - Output. The number of arcs and triangles, repectively, in the triangulation.
+    #[link_name = "bnodes_"]
+    pub fn bnodes(
+        n: *const c_int,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        nodes: *mut c_int,
+        nb: *mut c_int,
+        na: *mut c_int,
+        nt: *mut c_int,
+    );
 }
 
 #[cfg(test)]
 mod test {
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
 
     use super::*;
     use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
@@ -405,14 +429,8 @@ mod test {
         }
     }
 
-    #[rstest]
-    #[case(4, 6, 4)]
-    #[case(4, 9, 4)]
-    #[case(6, 6, 8)]
-    #[case(6, 9, 8)]
-    #[case(5, 6, 0)]
-    fn test_trlist(#[case] n: i32, #[case] nrow: i32, #[case] expected_nt: i32) {
-        // tetrahedron
+    #[fixture]
+    fn tetrahedron() -> (Vec<f64>, Vec<f64>, Vec<f64>) {
         let tx = vec![
             0.816_496_580_9,
             -0.408_248_290_50,
@@ -426,15 +444,34 @@ mod test {
             0.577_350_269_2,
             -0.577_350_269_2,
         ];
+        (tx, ty, tz)
+    }
 
-        // octohedron
+    #[fixture]
+    fn octahedron() -> (Vec<f64>, Vec<f64>, Vec<f64>) {
         let ox = vec![1.0, -1.0, 0.0, 0.0, 0.0, 0.0];
         let oy = vec![0.0, 0.0, 1.0, -1.0, 0.0, 0.0];
         let oz = vec![0.0, 0.0, 0.0, 0.0, 1.0, -1.0];
 
-        let x = if n == 4 { tx } else { ox };
-        let y = if n == 4 { ty } else { oy };
-        let z = if n == 4 { tz } else { oz };
+        (ox, oy, oz)
+    }
+
+    #[rstest]
+    #[case(4, 6, 4)]
+    #[case(4, 9, 4)]
+    #[case(6, 6, 8)]
+    #[case(6, 9, 8)]
+    #[case(5, 6, 0)]
+    fn test_trlist(
+        #[case] n: i32,
+        #[case] nrow: i32,
+        #[case] expected_nt: i32,
+        tetrahedron: (Vec<f64>, Vec<f64>, Vec<f64>),
+        octahedron: (Vec<f64>, Vec<f64>, Vec<f64>),
+    ) {
+        let x = if n == 4 { tetrahedron.0 } else { octahedron.0 };
+        let y = if n == 4 { tetrahedron.1 } else { octahedron.1 };
+        let z = if n == 4 { tetrahedron.2 } else { octahedron.2 };
 
         let list_size = (6 * (n - 2)) as usize;
         let mut list = vec![0i32; list_size];
@@ -494,5 +531,115 @@ mod test {
 
         assert_eq!(ier2, 1, "should fail with inalid nrow");
         assert_eq!(nt, 0, "nt should be 0 on error");
+    }
+
+    fn fibonacci_sphere(n: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+        let phi = (1.0 + 5.0_f64.sqrt()) / 2.0;
+        let mut x_points = Vec::with_capacity(n);
+        let mut y_points = Vec::with_capacity(n);
+        let mut z_points = Vec::with_capacity(n);
+
+        for i in 0..n {
+            let y = 1.0 - (i as f64 / (n as f64 - 1.0)) * 2.0;
+            let radius = (1.0 - y * y).sqrt();
+            let theta = 2.0 * std::f64::consts::PI * i as f64 * phi;
+            let x = radius * theta.cos();
+            let z = radius * theta.sin();
+
+            x_points.push(x);
+            y_points.push(y);
+            z_points.push(z);
+        }
+
+        (x_points, y_points, z_points)
+    }
+
+    #[fixture]
+    fn hemisphere() -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+        let x = vec![1.0, 0.0, -1.0, 0.0, 0.0];
+        let y = vec![0.0, 1.0, 0.0, -1.0, 0.0];
+        let z = vec![0.0, 0.0, 0.0, 0.0, 1.0];
+
+        (x, y, z)
+    }
+
+    #[rstest]
+    #[case(4, &[], 0, 6, 4)]
+    #[case(6, &[], 0, 12, 8)]
+    #[case(5, &[1, 2, 3, 4], 4, 9, 4)]
+    fn test_bnodes(
+        #[case] n: i32,
+        #[case] expected_boundary: &[i32],
+        #[case] expected_nb: i32,
+        #[case] expected_na: i32,
+        #[case] expected_nt: i32,
+        tetrahedron: (Vec<f64>, Vec<f64>, Vec<f64>),
+        hemisphere: (Vec<f64>, Vec<f64>, Vec<f64>),
+    ) {
+        let (x, y, z) = if n == 4 {
+            tetrahedron
+        } else if n == 5 {
+            hemisphere
+        } else {
+            fibonacci_sphere(n as usize)
+        };
+
+        let list_size = (6 * (n - 2)) as usize;
+        let mut list = vec![0i32; list_size];
+        let mut lptr = vec![0i32; list_size];
+        let mut lend = vec![0i32; n as usize];
+        let mut lnew = 0i32;
+
+        let mut near = vec![0i32; n as usize];
+        let mut next = vec![0i32; n as usize];
+        let mut dist = vec![0.0f64; n as usize];
+        let mut ier = 0i32;
+
+        unsafe {
+            trmesh(
+                &raw const n,
+                x.as_ptr(),
+                y.as_ptr(),
+                z.as_ptr(),
+                list.as_mut_ptr(),
+                lptr.as_mut_ptr(),
+                lend.as_mut_ptr(),
+                &raw mut lnew,
+                near.as_mut_ptr(),
+                next.as_mut_ptr(),
+                dist.as_mut_ptr(),
+                &raw mut ier,
+            );
+        };
+
+        assert_eq!(ier, 0, "trmesh failed");
+
+        let mut nodes = vec![0i32; n as usize];
+        let mut nb = 0i32;
+        let mut na = 0i32;
+        let mut nt = 0i32;
+
+        unsafe {
+            bnodes(
+                &raw const n,
+                list.as_ptr(),
+                lptr.as_ptr(),
+                lend.as_ptr(),
+                nodes.as_mut_ptr(),
+                &raw mut nb,
+                &raw mut na,
+                &raw mut nt,
+            );
+        };
+
+        assert_eq!(nb, expected_nb, "boundary node count mismatch");
+        assert_eq!(na, expected_na, "arc count mismatch");
+        assert_eq!(nt, expected_nt, "triangle count mismatch");
+
+        if nb > 0 {
+            for i in 0..nb as usize {
+                assert_eq!(nodes[i], expected_boundary[i], "boundary node {i} mismatch");
+            }
+        }
     }
 }

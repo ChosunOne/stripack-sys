@@ -63,6 +63,108 @@ unsafe extern "C" {
     /// - Arrays `v1`, `v2`, `v3` must have length == `3`
     #[link_name = "areas_"]
     pub fn areas(v1: *const c_double, v2: *const c_double, v3: *const c_double) -> c_double;
+
+    /// Creates a Delaunay triangulation on the unit sphere.
+    ///
+    /// The Delaunay triangulation is defined as a set of (spherical) triangles with the following five
+    /// properties:
+    /// 1. The triangle vertices are nodes.
+    /// 2. No triangle contains a node other than its vertices.
+    /// 3. The interiors of the triangles are pairwise disjoint.
+    /// 4. The union of triangles is the convex hull of the set of nodes (the smallest convex set that
+    ///    contains the nodes). If the nodes are not contained in a single hemisphere, their convex hull
+    ///    is the entire sphere and there are no boundary nodes. Otherwise, there are at least three
+    ///    boundary nodes.
+    /// 5. The interior of the circumcircle of each triangle contains no node.
+    ///
+    /// The first four properties define a triangulation, and the last property results in a
+    /// triangulation which is as close as possible to equiangular in a certain sense and which is
+    /// uniquely defined unless four or more nodes lie in a common plane. This property makes the
+    /// triangulation well-suited for solving closest-point problems and for triangle based
+    /// interpolation.
+    ///
+    /// Provided the nodes are randomly ordered, the algorithm has expected time complexity O(N*log(N))
+    /// for most nodal distributions. Note, however, that the complexity may be as high as O(N**2) if,
+    /// for example, the nodes are ordered on increasing latitude.
+    ///
+    /// Spherical coordinates (latitude and longitude) may be converted to Cartesian coordinates by
+    /// `trans`.
+    ///
+    /// The following is a list of the software package modules which a user may wish to call directly:
+    /// `addnod` - Updates the triangulation by appending a new node.
+    /// `areas` - Returns the area of a spherical triangle
+    /// `bnodes` - Returns an array containing the index of the boundary nodes (if any) in
+    /// counterclockwise order. Counts of boundary nodes, triangles, and arcs are also returned.
+    /// `circum` - Returns the circumcenter of a spherical triangle.
+    /// `crlist` - Returns the set of triangle circumcenters (Voronoi vertices) and circumradii
+    /// associated with a triangulation.
+    /// `delarc` - Deletes a boundary arc from a triangulation.
+    /// `edge` - Forces an arbitrary pair of nodes to be connected by an arc in the triangulation.
+    /// `getnp` - Determines the ordered sequence of L closest nodes to a given node, along with the
+    /// associated distances.
+    /// `inside` - Locates a point relative to a polygon on the surface of the sphere.
+    /// `intrsc` - Returns the point of intersection between a pair of great circle arcs.
+    /// `jrand` - Generates a uniformly distributed pseudo-random integer.
+    /// `left` - Locates a point relative to a great circle
+    /// `nearnd` - Returns the index of the nearest node to an arbitrary point, along with its squared
+    /// distance.
+    /// `scoord` - Converts a point from Cartesian coordinates to spherical coordinates.
+    /// `store` - Forces a value to be stored in main memory so that the precision of floating point
+    /// numbers in memory locations rather than registers is computed
+    /// `trans` - Transforms spherical coordinates into Cartesian coordinates on the unit sphere for
+    /// input to `trmesh`
+    /// `trlist` - Converts the triangulation data structure to a triangle list more suitable for use in
+    /// a finite element code.
+    /// `trlprt` - Creates a Delaunay triangulation of a set of nodes.
+    /// `trplot` - Creates a level-2 Encapsulated Postscript (EPS) file containing a triangulation plot.
+    /// `trprnt` - Prints the triangulation data structure and, optionally, the nodal coordinates.
+    /// `vrplot` - Createsa level-2 Encapsulated Postscript (EPS) file containing a Voronoi diagram
+    /// plot.
+    ///
+    /// # Arguments
+    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    /// * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of distinct nodes. `(x[k], y[k], z[k])` is referred to as node `k`, and `k` is referred to as a nodal index. It is required that `x[k]**2 + y[k]**2 + z[k]**2 = 1` for all `k`. The first three nodes must not be collinear (lie on a common great circle).
+    /// * `list` - Output. `6 * (n - 2)` nodal indexes which, along with `lptr`, `lend`, and `lnew`
+    /// define the triangulation as a set of `n` adjacency lists; counterclockwise-ordered sequences of
+    /// neighboring nodes such that the first and last neighbors of a boundary node are boundary nodes
+    /// (the first neighbor of an interior node is arbitrary). In order to distinguish between interior
+    /// and boundary nodes, the last neighbor of each boundary node is represented by the negative of
+    /// its index.
+    /// * `lptr` - Output. Set of pointers (`list` indexes) in one-to-one correspondence with the
+    /// elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
+    /// counterclockwise order (the first neighbor follows the last neighbor).
+    /// * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
+    /// node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
+    /// * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
+    /// one). `list`, `lptr`, `lend` and `lnew` are not altered if `ier < 0`, and are incomplete if `0 <
+    /// ier`.
+    /// * `near` - Workspace. An array of `n` integers used to efficiently determine the nearest
+    /// triangulation node to each unprocessed node for use by `addnod`.
+    /// * `next` - Workspace. An array of `n` integers used to efficiently determine the nearest triangulation node
+    /// to each unprocessed node for use by `addnod`.
+    /// * `dist` - Workspace. An array of `n` floats used to efficiently determine the neareast
+    /// triangulation node to each unprocessed node for use by `addnod`.
+    /// * `ier` - Output. An integer error indicator:
+    ///     0, if no errors were ecountered.
+    ///     -1, if `n < 3` on input.
+    ///     -2, if the first three nodes are collinear.
+    ///     L, if nodes L and M coincide for some L < M. The data structure represents a triangulation
+    ///     of nodes 1 to M-1 in this case.
+    #[link_name = "trmesh_"]
+    pub fn trmesh(
+        n: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+        near: *mut c_int,
+        next: *mut c_int,
+        dist: *mut c_double,
+        ier: *mut c_int,
+    );
 }
 
 #[cfg(test)]
@@ -204,5 +306,69 @@ mod test {
             (z / norm - pz / pnrm).abs() < f64::EPSILON,
             "expected: {pz} got: {z}"
         );
+    }
+
+    #[rstest]
+    #[case(2, &[1.0, 0.0], &[0.0, 1.0], &[0.0, 0.0], -1)]
+    fn test_trmesh(
+        #[case] n: i32,
+        #[case] x_in: &[f64],
+        #[case] y_in: &[f64],
+        #[case] z_in: &[f64],
+        #[case] expected_ier: i32,
+    ) {
+        let mut x = Vec::with_capacity(n as usize);
+        let mut y = Vec::with_capacity(n as usize);
+        let mut z = Vec::with_capacity(n as usize);
+
+        for i in 0..n as usize {
+            let norm = (x_in[i].powi(2) + y_in[i].powi(2) + z_in[i].powi(2)).sqrt();
+            x.push(x_in[i] / norm);
+            y.push(y_in[i] / norm);
+            z.push(z_in[i] / norm);
+        }
+
+        let list_size = if n >= 3 { 6 * (n - 2) } else { 0 } as usize;
+
+        let mut list = vec![0i32; list_size];
+        let mut lptr = vec![0i32; list_size];
+        let mut lend = vec![0i32; n as usize];
+        let mut lnew = 0i32;
+
+        let mut near = vec![0i32; n as usize];
+        let mut next = vec![0i32; n as usize];
+        let mut dist = vec![0.0f64; n as usize];
+        let mut ier = 0i32;
+
+        unsafe {
+            trmesh(
+                &raw const n,
+                x.as_ptr(),
+                y.as_ptr(),
+                z.as_ptr(),
+                list.as_mut_ptr(),
+                lptr.as_mut_ptr(),
+                lend.as_mut_ptr(),
+                &raw mut lnew,
+                near.as_mut_ptr(),
+                next.as_mut_ptr(),
+                dist.as_mut_ptr(),
+                &raw mut ier,
+            );
+        }
+
+        assert_eq!(ier, expected_ier);
+
+        if expected_ier != 0 {
+            return;
+        }
+
+        assert!(lnew > 0, "lnew should be positive");
+        assert!(lnew as usize <= list_size, "lnew should be within bounds");
+
+        for i in 0..n as usize {
+            let lend_val = lend[i];
+            assert!(lend_val > 0, "lend[{i}] should be positive");
+        }
     }
 }

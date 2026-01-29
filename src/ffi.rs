@@ -25,6 +25,23 @@ unsafe extern "C" {
         y: *mut c_double,
         z: *mut c_double,
     );
+
+    /// Computes the area of a spherical triangle on the unit sphere.
+    ///
+    /// # Arguments
+    /// * `v1[3]`, `v2[3]`, `v3[3]` - Input. The Cartesian coordinates of unit vectors (the three triangle
+    /// vertices in any order). These vectors, if nonzero, are implicitly scaled to have length `1`.
+    ///
+    /// # Returns
+    /// The area of the spherical triangle defined by `v1`, `v2`, and `v3`, in the range `0` to
+    /// `2*PI` (the area of a hemisphere). `0` if and only if `v1`, `v2`, and `v3` lie in (or close to)
+    /// a plane containing the origin.
+    ///
+    /// # Safety
+    /// - All pointers must be valid and properly aligned
+    /// - Arrays `v1`, `v2`, `v3` must have length == `3`
+    #[link_name = "areas_"]
+    pub fn areas(v1: *const c_double, v2: *const c_double, v3: *const c_double) -> c_double;
 }
 
 #[cfg(test)]
@@ -72,5 +89,26 @@ mod test {
             assert!((y[i] - expected_y[i]).abs() < f64::EPSILON);
             assert!((z[i] - expected_z[i]).abs() < f64::EPSILON);
         }
+    }
+
+    #[rstest]
+    #[case(&[1.0, 0.0, 0.0], &[0.0, 1.0, 0.0], &[0.0, 0.0, 1.0], FRAC_PI_2)]
+    #[case(&[1.0, 0.0, 0.0], &[0.0, -1.0, 0.0], &[0.0, 0.0, 1.0], FRAC_PI_2)]
+    #[case(&[-1.0, 0.0, 0.0], &[0.0, 1.0, 0.0], &[0.0, 0.0, -1.0], FRAC_PI_2)]
+    #[case(&[1.0, 0.0, 0.0], &[0.0, 1.0, 0.0], &[0.0, 0.0, -1.0], FRAC_PI_2)]
+    #[case(&[1.0, 0.0, 0.0], &[1.0, 0.0, 0.0], &[1.0, 0.0, 0.0], 0.0)]
+    #[case(&[1.0, 0.0, 0.0], &[0.0, 1.0, 0.0], &[-1.0, 0.0, 0.0], 0.0)]
+    #[case(&[FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0], &[FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.0], &[0.0, 0.0, 1.0], FRAC_PI_2)]
+    fn test_areas(
+        #[case] v1: &[f64; 3],
+        #[case] v2: &[f64; 3],
+        #[case] v3: &[f64; 3],
+        #[case] expected_area: f64,
+    ) {
+        let area = unsafe { areas(v1.as_ptr(), v2.as_ptr(), v3.as_ptr()) };
+        assert!(
+            (area - expected_area).abs() < f64::EPSILON,
+            "expected {expected_area} got {area}"
+        );
     }
 }

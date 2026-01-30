@@ -144,6 +144,26 @@ unsafe extern "C" {
         z0: *const c_double,
     ) -> bool;
 
+    /// Returns the index (`list` pointer) of `nb` in the adjacency list for `n0`, where `lpl = lend[n0]`. This function is identical to the similarly named function in TRIPACK.
+    ///
+    /// # Arguments
+    /// * `lpl` - Input. Is `lend[n0]`
+    /// * `nb` - Input. The index of the node whose pointer is to be returned. `nb` must be connected to
+    ///   `n0`.
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]` - Input. The data structure defining the
+    ///   triangulation, created by `trmesh`.
+    ///
+    ///   # Returns
+    /// Pointer `lstptr` such that `list[lstptr] = nb` or `list[lstptr] = -nb`, unless `nb`
+    ///   is not a neighbor of `n0`, in which case `lstptr = lpl`.
+    #[link_name = "lstptr_"]
+    pub fn lstptr(
+        lpl: *const c_int,
+        nb: *const c_int,
+        list: *const c_int,
+        lptr: *const c_int,
+    ) -> c_int;
+
     /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
     ///
     /// # Arguments
@@ -1162,6 +1182,57 @@ mod test {
             let result = should_swap(1, 2, 3, 4, &x, &y, &z);
 
             prop_assert_eq!(result, det > 0.0);
+        }
+    }
+
+    fn find_node_pointer(lpl: i32, nb: i32, list: &[i32], lptr: &[i32]) -> i32 {
+        unsafe { lstptr(&raw const lpl, &raw const nb, list.as_ptr(), lptr.as_ptr()) }
+    }
+
+    proptest! {
+        fn lsptr_finds_all_neighbors_in_triangulation(n in 6..50i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, lend, _) = create_triangulation(n, &x, &y, &z);
+
+            for node_idx in 1..=n {
+                let lpl = lend[(node_idx - 1) as usize];
+
+                let mut current = lpl;
+                let mut neighbor_count = 0;
+
+                loop {
+                    let neighbor = list[(current - 1) as usize].abs();
+
+                    let found_ptr = find_node_pointer(lpl, neighbor, &list, &lptr);
+
+                    prop_assert!(found_ptr > 0 && found_ptr <= 6 * (n - 2), "Node {node_idx}: lstptr should return valid poiter for neighbor {neighbor}");
+                    prop_assert_eq!(list[(found_ptr - 1) as usize].abs(), neighbor, "Node {}: lstptr should find correct neighbor {} at position {}", node_idx, neighbor, found_ptr);
+
+                    let mut traversal_ptr = lpl;
+                    let mut found_in_traversal = false;
+                    for _ in 0..(6 * (n - 2)) {
+                        if traversal_ptr == found_ptr {
+                            found_in_traversal = true;
+                            break;
+                        }
+                        traversal_ptr = lptr[(traversal_ptr - 1) as usize];
+                        if traversal_ptr == lpl {
+                            break;
+                        }
+                    }
+
+                    prop_assert!(found_in_traversal, "Node {node_idx}: lstptr result {found_ptr} should be reachable from lpl {lpl}");
+
+                    neighbor_count += 1;
+                    current = lptr[(current - 1) as usize];
+
+                    if current == lpl {
+                        break;
+                    }
+                }
+
+                prop_assert!(neighbor_count >= 2, "Node {node_idx} should have at least 2 neighbors, found {neighbor_count}");
+            }
         }
     }
 }

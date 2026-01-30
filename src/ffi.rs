@@ -247,6 +247,34 @@ unsafe extern "C" {
     );
 
     /**
+    Adds an interior node to a triangulation.
+
+    This subroutine adds an interior node to a triangulation of a set of points on the unit sphere. The data structure is updated with the insertion of node `kk` into the triangle whose vertices are `i1`, `i2`, and `i3`. No optimization of the triangulation is performed.
+
+    This routine is identical to the similarly named routine in TRIPACK.
+
+    # Arguments
+
+    * `kk` - Input. The index of the node to be inserted. `1 <= kk` and `kk` must not be equal
+      to `i1`, `i2`, or `i3`.
+    * `i1`, `i2`, `i3` - Input. Indexes of the counterclockwise-orderd sequence of vertices of a
+      triangle which contains node `kk`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The data structure
+      defining the triangulation, created by `trmesh`. Triangle (`i1`, `i2`, `i3`) must be included in the triangulation. On output, updated with the addition of node `kk`. `kk` will be connected to nodes `i1`, `i2`, and `i3`.
+    **/
+    #[link_name = "intadd_"]
+    pub fn intadd(
+        kk: *const c_int,
+        i1: *const c_int,
+        i2: *const c_int,
+        i3: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+    );
+
+    /**
     Determines whether a node is left of a plane through the origin.
 
     This function determines whether node `n0` is in the (closed) left hemisphere defined by the
@@ -1411,6 +1439,29 @@ mod test {
         unsafe { lstptr(&raw const lpl, &raw const nb, list.as_ptr(), lptr.as_ptr()) }
     }
 
+    fn check_triangulation(n: i32, list: &[i32], lend: &[i32], lptr: &[i32]) {
+        for node in 1..=n {
+            let lpl = lend[(node - 1) as usize];
+            assert!(lpl > 0, "Node {node} should have valid lend after edge");
+
+            let mut current = lpl;
+            let mut count = 0;
+            loop {
+                let neighbor = list[(current - 1) as usize].abs();
+                assert!(
+                    neighbor >= 1 && neighbor <= n,
+                    "Node {node} neighbor {neighbor} out of range"
+                );
+                count += 1;
+                current = lptr[(current - 1) as usize];
+                if current == lpl {
+                    break;
+                }
+                assert!(count <= 6 * (n - 2), "Infinite loop in adjacency list");
+            }
+        }
+    }
+
     proptest! {
         fn lsptr_finds_all_neighbors_in_triangulation(n in 6..50i32) {
             let (x, y, z) = fibonacci_sphere(n as usize);
@@ -1629,25 +1680,7 @@ mod test {
 
             prop_assert!(ier == 0 || ier == 1, "optim failed");
 
-            for node in 1..=n {
-                let lpl = lend[(node - 1) as usize];
-                prop_assert!(lpl > 0, "Node {node} should have lend after optim");
-
-                let mut current = lpl;
-                let mut count = 0;
-                loop {
-                    let neighbor = list[(current - 1) as usize].abs();
-                    prop_assert!(neighbor >= 1 && neighbor <= n, "Node {node} neighbor {neighbor} out of range");
-                    count += 1;
-                    current = lptr[(current - 1) as usize];
-
-                    if current == lpl {
-                        break;
-                    }
-
-                    prop_assert!(count <= 6 * (n - 2), "Infinite loop detected in adjacency list");
-                }
-            }
+            check_triangulation(n, &list, &lend, &lptr);
 
             if ier == 0 {
                 prop_assert!(nit < 100, "Converged but used all iterations");
@@ -1721,23 +1754,7 @@ mod test {
             let is_adjacent = list[(ptr_in2 - 1) as usize].abs() == in2;
             prop_assert!(is_adjacent, "Nodes {in1} and {in2} should be adjacent after edge, lwk={lwk}");
 
-            for node in 1..=n {
-                let lpl = lend[(node - 1) as usize];
-                prop_assert!(lpl > 0, "Node {node} should have valid lend after edge");
-
-                let mut current = lpl;
-                let mut count = 0;
-                loop {
-                    let neighbor = list[(current - 1) as usize].abs();
-                    prop_assert!(neighbor >= 1 && neighbor <= n, "Node {node} neighbor {neighbor} out of range");
-                    count += 1;
-                    current = lptr[(current - 1) as usize];
-                    if current == lpl {
-                        break;
-                    }
-                    prop_assert!(count <= 6 * (n - 2), "Infinite loop in adjacency list");
-                }
-            }
+            check_triangulation(n, &list, &lend, &lptr);
 
             prop_assert!(lwk >= 0 && lwk <= max_lwk as i32, "lwk should be in valid range [0, {max_lwk}], got {lwk}");
         }
@@ -1802,52 +1819,175 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_bdyadd() {
+        let (x, y, z) = hemisphere();
+        let n_base = 5i32;
+
+        let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n_base, &x, &y, &z);
+
+        let mut nodes = vec![0i32; n_base as usize];
+        let mut nb = 0i32;
+        let mut na = 0i32;
+        let mut nt = 0i32;
+
+        unsafe {
+            bnodes(
+                &raw const n_base,
+                list.as_ptr(),
+                lptr.as_ptr(),
+                lend.as_ptr(),
+                nodes.as_mut_ptr(),
+                &raw mut nb,
+                &raw mut na,
+                &raw mut nt,
+            );
+        }
+
+        if nb < 2 || lnew as usize >= list.len() {
+            return;
+        }
+
+        let i1 = nodes[0];
+        let i2 = nodes[1];
+        let kk = n_base + 1;
+
+        let new_size = list.len() + 10;
+        list.resize(new_size, 0);
+        lptr.resize(new_size, 0);
+        lend.resize(n_base as usize + 1, 0);
+
+        let lnew_before = lnew;
+
+        unsafe {
+            bdyadd(
+                &raw const kk,
+                &raw const i1,
+                &raw const i2,
+                list.as_mut_ptr(),
+                lptr.as_mut_ptr(),
+                lend.as_mut_ptr(),
+                &raw mut lnew,
+            );
+        }
+
+        assert!(lnew > lnew_before, "bdyadd should increment lnew");
+        assert!(
+            lend[(kk - 1) as usize] > 0,
+            "New node should have valid lend"
+        );
+
+        let lpl_kk = lend[(kk - 1) as usize];
+        let ptr_i1 = find_node_pointer(lpl_kk, i1, &list, &lptr);
+        assert!(ptr_i1 > 0, "i1 should be a neighbor of kk");
+        assert_eq!(list[(ptr_i1 - 1) as usize].abs(), i1);
+
+        let ptr_i2 = find_node_pointer(lpl_kk, i2, &list, &lptr);
+        assert!(ptr_i2 > 0, "i2 should be a neighbor of kk");
+        assert_eq!(list[(ptr_i2 - 1) as usize].abs(), i2);
+
+        check_triangulation(kk, &list, &lend, &lptr);
+    }
+
     proptest! {
         #[test]
-        fn test_bdyadd(n in 5..15i32) {
-            let (x, y, z) = hemisphere();
-            let n_base = 5i32;
+        fn test_intadd(n in 6..20i32) {
+            let (mut x, mut y, mut z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
 
-            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n_base, &x, &y, &z);
-
-            let mut nodes = vec![0i32; n_base as usize];
-            let mut nb = 0i32;
-            let mut na = 0i32;
+            let nrow = 6i32;
+            let max_triangles = (2 * n - 4) as usize;
+            let mut ltri = vec![0i32; (nrow as usize) * max_triangles];
             let mut nt = 0i32;
+            let mut ier = 0i32;
 
             unsafe {
-                bnodes(
-                    &raw const n_base,
+                trlist(
+                    &raw const n,
                     list.as_ptr(),
                     lptr.as_ptr(),
                     lend.as_ptr(),
-                    nodes.as_mut_ptr(),
-                    &raw mut nb,
-                    &raw mut na,
+                    &raw const nrow,
                     &raw mut nt,
+                    ltri.as_mut_ptr(),
+                    &raw mut ier,
                 );
             }
 
-            if nb < 2 || lnew as usize >= list.len() {
+            if ier != 0 || nt < 1 {
                 return Ok(());
             }
 
-            let i1 = nodes[0];
-            let i2 = nodes[1];
-            let kk = n_base + 1;
+            let i1 = ltri[0];
+            let i2 = ltri[1];
+            let i3 = ltri[2];
 
-            let new_size = list.len() + 10;
-            list.resize(new_size, 0);
-            lptr.resize(new_size, 0);
-            lend.resize(n_base as usize + 1, 0);
+            let x1 = x[(i1 - 1) as usize];
+            let y1 = y[(i1 - 1) as usize];
+            let z1 = z[(i1 - 1) as usize];
+            let x2 = x[(i2 - 1) as usize];
+            let y2 = y[(i2 - 1) as usize];
+            let z2 = z[(i2 - 1) as usize];
+            let x3 = x[(i3 - 1) as usize];
+            let y3 = y[(i3 - 1) as usize];
+            let z3 = z[(i3 - 1) as usize];
+
+            let px = 0.25 * x1 + 0.25 * x2 + 0.5 * x3;
+            let py = 0.25 * y1 + 0.25 * y2 + 0.5 * y3;
+            let pz = 0.25 * z1 + 0.25 * z2 + 0.5 * z3;
+
+            let [px, py, pz] = normalize(&[px, py, pz]);
+            let p = [px, py, pz];
+            let mut b1 = 0.0;
+            let mut b2 = 0.0;
+            let mut b3 = 0.0;
+            let mut tf_i1 = 0i32;
+            let mut tf_i2 = 0i32;
+            let mut tf_i3 = 0i32;
+            let nst = 1i32;
+
+            unsafe {
+                trfind(
+                    &raw const nst,
+                    p.as_ptr(),
+                    &raw const n,
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    &raw mut b1,
+                    &raw mut b2,
+                    &raw mut b3,
+                    &raw mut tf_i1,
+                    &raw mut tf_i2,
+                    &raw mut tf_i3,
+                );
+            }
+
+            if tf_i3 == 0 {
+                return Ok(());
+            }
+
+            let kk = n + 1;
+            x.push(px);
+            y.push(py);
+            z.push(pz);
+
+            let new_list_size = list.len() + 6;
+            list.resize(new_list_size, 0);
+            lptr.resize(new_list_size, 0);
+            lend.resize(kk as usize, 0);
 
             let lnew_before = lnew;
 
             unsafe {
-                bdyadd(
+                intadd(
                     &raw const kk,
-                    &raw const i1,
-                    &raw const i2,
+                    &raw const tf_i1,
+                    &raw const tf_i2,
+                    &raw const tf_i3,
                     list.as_mut_ptr(),
                     lptr.as_mut_ptr(),
                     lend.as_mut_ptr(),
@@ -1855,36 +1995,24 @@ mod test {
                 );
             }
 
-            prop_assert!(lnew > lnew_before, "bdyadd should increment lnew");
+            prop_assert_eq!(lnew, lnew_before + 6, "intadd should increment lnew by 3");
             prop_assert!(lend[(kk - 1) as usize] > 0, "New node should have valid lend");
 
-            let lpl_kk = lend[(kk - 1) as usize];
-            let ptr_i1 = find_node_pointer(lpl_kk, i1, &list, &lptr);
-            prop_assert!(ptr_i1 > 0, "i1 should be a neighbor of kk");
-            prop_assert_eq!(list[(ptr_i1 - 1) as usize].abs(), i1);
-
-            let ptr_i2 = find_node_pointer(lpl_kk, i2, &list, &lptr);
-            prop_assert!(ptr_i2 > 0, "i2 should be a neighbor of kk");
-            prop_assert_eq!(list[(ptr_i2 - 1) as usize].abs(), i2);
-
-            for node in 1..=kk {
-                let lpl = lend[(node - 1) as usize];
-                prop_assert!(lpl > 0, "Node {node} should have valid lend");
-
-                let mut current = lpl;
-                let mut count = 0;
-                loop {
-                    let neighbor = list[(current - 1) as usize].abs();
-                    prop_assert!(neighbor >= 1 && neighbor <= kk, "Node {node} neighbor {neighbor} out of range");
-
-                    count += 1;
-                    current = lptr[(current - 1) as usize];
-                    if current == lpl {
-                        break;
-                    }
-                    prop_assert!(count <= 6 * (kk - 2), "Infinite loop in adjacency list");
-                }
+            for &vertex in &[tf_i1, tf_i2, tf_i3] {
+                let lpl_kk = lend[(kk - 1) as usize];
+                let ptr = find_node_pointer(lpl_kk, vertex, &list, &lptr);
+                prop_assert!(ptr > 0, "Vertex {vertex} should be a neighbor of kk");
+                prop_assert_eq!(list[(ptr - 1) as usize].abs(), vertex, "kk should have vertex {} as a neighbor", vertex);
             }
+
+            for &vertex in &[tf_i1, tf_i2, tf_i3] {
+                let lpl_vertex = lend[(vertex - 1) as usize];
+                let ptr = find_node_pointer(lpl_vertex, kk, &list, &lptr);
+                prop_assert!(ptr > 0, "kk should be a neighbor of vertex {}", vertex);
+                prop_assert_eq!(list[(ptr - 1) as usize].abs(), kk, "Vertex {} should have kk as a neighbor", vertex);
+            }
+
+            check_triangulation(kk, &list, &lend, &lptr);
         }
     }
 }

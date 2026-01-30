@@ -42,6 +42,27 @@ unsafe extern "C" {
         nt: *mut c_int,
     );
 
+    /// Returns the circumcenter of a spherical triangle on the unit sphere: the point on the
+    /// sphere surface that is equally distant from the three triangle vertices and lies in the same
+    /// hemisphere, where distance is taken to be arc-length on the sphere surface.
+    ///
+    /// # Arguments
+    /// * `v1[3]`, `v2[3]`, `v3[3]` - Input. The coordinates of the three triangle vertices (unit
+    ///   vectors) in counterclockwise order.
+    /// * `c[3]` - Output. The coordinates of the circumcenter unless `0 < ier`, which in case `c` is
+    ///   not defined. `c = (v2 - v1) X (v3 - v1)` normalized to a unit vector.
+    /// * `ier` - Output. Error indicator:
+    ///   `0`, if no errors were encountered.
+    ///   `1`, if `v1`, `v2`, and `v3` lie on a common line: `(v2 - v1) X (v3 - v1) = 0`.
+    #[link_name = "circum_"]
+    pub fn circum(
+        v1: *const c_double,
+        v2: *const c_double,
+        v3: *const c_double,
+        c: *mut c_double,
+        ier: *mut c_int,
+    );
+
     /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
     ///
     /// # Arguments
@@ -270,7 +291,7 @@ mod test {
     use rstest::{fixture, rstest};
 
     use super::*;
-    use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
+    use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI, TAU};
 
     #[rstest]
     #[case(1, &[FRAC_PI_2], &[0.0], &[0.0], &[0.0], &[1.0])]
@@ -767,6 +788,107 @@ mod test {
             prop_assert!(i2 >= 1 && i2 <= n, "i2 should be a valid node index");
             prop_assert!(i3 >= 1 && i3 <= n, "i3 should be a valid node index");
             prop_assert!(b1 > 0.0 && b2 > 0.0 && b3 > 0.0, "barycentric coords should be positive for an interior point");
+        }
+    }
+
+    fn unit_vector() -> impl Strategy<Value = [f64; 3]> {
+        (-1.0f64..1.0, -1.0f64..1.0, -1.0f64..1.0).prop_map(|(x, y, z)| {
+            let norm = (x * x + y * y + z * z).sqrt();
+            if norm < f64::EPSILON {
+                [1.0, 0.0, 0.0]
+            } else {
+                [x / norm, y / norm, z / norm]
+            }
+        })
+    }
+
+    fn spherical_distance(a: &[f64], b: &[f64]) -> f64 {
+        (a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
+            .clamp(-1.0, 1.0)
+            .acos()
+    }
+
+    fn normalize(v: &[f64]) -> [f64; 3] {
+        let norm = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+        if norm < f64::EPSILON {
+            [1.0, 0.0, 0.0]
+        } else {
+            [v[0] / norm, v[1] / norm, v[2] / norm]
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn circum_equidistant(v1 in unit_vector(), v2 in unit_vector(), v3 in unit_vector()) {
+            let mut c = [0.0; 3];
+            let mut ier = 0i32;
+
+            unsafe {
+                circum(
+                    v1.as_ptr(),
+                    v2.as_ptr(),
+                    v3.as_ptr(),
+                    c.as_mut_ptr(),
+                    &raw mut ier
+                );
+            };
+
+            if ier != 0 {
+                return Ok(());
+            }
+
+            let d1 = spherical_distance(&c, &v1);
+            let d2 = spherical_distance(&c, &v2);
+            let d3 = spherical_distance(&c, &v3);
+
+            prop_assert!((d1 - d2).abs() < 1e-10, "d1={d1} d2={d2}");
+            prop_assert!((d2 - d3).abs() < 1e-10, "d2={d2} d3={d3}");
+            prop_assert!((d1 - d3).abs() < 1e-10, "d1={d1} d3={d3}");
+        }
+
+        #[test]
+        fn circum_on_unit_sphere(v1 in unit_vector(), v2 in unit_vector(), v3 in unit_vector()) {
+            let mut c = [0.0; 3];
+            let mut ier = 0i32;
+
+            unsafe {
+                circum(
+                    v1.as_ptr(),
+                    v2.as_ptr(),
+                    v3.as_ptr(),
+                    c.as_mut_ptr(),
+                    &raw mut ier
+                );
+            };
+
+            if ier != 0 {
+                return Ok(());
+            }
+
+            let norm = (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt();
+            prop_assert!((norm - 1.0).abs() < 1e-10, "norm: {norm}");
+        }
+
+        #[test]
+        fn circum_collinear_error(value in 0f64..TAU) {
+            let v1 = [value, 0.0, 0.0];
+            let v2 = [value * 2.0, 0.0, 0.0];
+            let v3 = [value * 3.0, 0.0, 0.0];
+
+            let mut c = [0.0; 3];
+            let mut ier = 0i32;
+
+            unsafe {
+                circum(
+                    v1.as_ptr(),
+                    v2.as_ptr(),
+                    v3.as_ptr(),
+                    c.as_mut_ptr(),
+                    &raw mut ier
+                );
+            };
+
+            prop_assert!(ier == 1, "expected 1 got {ier}");
         }
     }
 }

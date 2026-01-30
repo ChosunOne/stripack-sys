@@ -1,6 +1,47 @@
 use std::ffi::{c_double, c_int};
 
 unsafe extern "C" {
+    /// Adds a node to a triangulation of the convex hull of nodes `1, ..., k-1`, producing a
+    /// triangulation of the convex hull of nodes `1, ..., k`.
+    ///
+    /// The algorithm consists of the following steps: node `k` is located relative to the
+    /// triangulation (`trfind`), its index is added to the data structure (`intadd` or `bdyadd`), and a sequence of swaps (`swptst` and `swap`) are applied to the arcs opposite `k` so that all arcs incident on node `k` and opposite node `k` are locally optimal (statisfy the circumcircle test).
+    ///
+    /// Thus, if a Delaunay triangulation of nodes `1` through `k-1` is input, a Delaunay
+    /// triangulation of nodes `1` through `k` will be output.
+    ///
+    /// # Arguments
+    ///
+    /// * `nst` - Input. The index of a node at which `trfind` begins its search. Search time depends on
+    ///   the proximity of this node to `k`. If `nst < 1`, the search is begun at node `k-1`.
+    ///
+    /// * `k` - Input. The nodal index (index for `x`, `y`, and `z`, and `lend`) of the new node
+    ///   to be added. `4 <= k`.
+    ///
+    /// * `x[k]`, `y[k]`, `z[k]` - Input. The coordinates of the nodes.
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[k]`, `lnew` - Input/Output. On input, the data
+    ///   structure associated with the triangulation of nodes `1` to `k-1`. On output, the data has been
+    ///   updated to include node `k`. The array lengths are assumed to be large enough to add node `k`.
+    ///   Refer to `trmesh`.
+    /// * `ier` - Output. Error indicator:
+    ///   `0` if no errors were encountered.
+    ///   `-1` if `k` is outside its valid range on input.
+    ///   `-2` if all nodes (including `k`) are collinear (lie on a common geodesic).
+    ///   `l` if nodes `l` and `k` coincide for some `l < k`
+    #[link_name = "addnod_"]
+    pub fn addnod(
+        nst: *const c_int,
+        k: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+        ier: *mut c_int,
+    );
+
     /// Computes the area of a spherical triangle on the unit sphere.
     ///
     /// # Arguments
@@ -710,7 +751,7 @@ mod test {
         x: &[f64],
         y: &[f64],
         z: &[f64],
-    ) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+    ) -> (Vec<i32>, Vec<i32>, Vec<i32>, i32) {
         let list_size = (6 * (n - 2)) as usize;
         let mut list = vec![0i32; list_size];
         let mut lptr = vec![0i32; list_size];
@@ -741,7 +782,7 @@ mod test {
 
         assert_eq!(ier, 0, "trmesh failed");
 
-        (list, lptr, lend)
+        (list, lptr, lend, lnew)
     }
 
     proptest! {
@@ -753,7 +794,7 @@ mod test {
             }
             let p = [px / norm, py / norm, pz / norm];
             let (x, y, z) = fibonacci_sphere(n as usize);
-            let (list, lptr, lend) = create_triangulation(n, &x, &y, &z);
+            let (list, lptr, lend, _) = create_triangulation(n, &x, &y, &z);
 
             let nst = 1;
             let mut b1 = 0.0;
@@ -890,5 +931,64 @@ mod test {
 
             prop_assert!(ier == 1, "expected 1 got {ier}");
         }
+    }
+
+    fn add_node_to_triangulation(
+        nst: i32,
+        k: i32,
+        x: &[f64],
+        y: &[f64],
+        z: &[f64],
+        list: &mut [i32],
+        lptr: &mut [i32],
+        lend: &mut [i32],
+        lnew: &mut i32,
+    ) -> i32 {
+        let mut ier = 0i32;
+        unsafe {
+            addnod(
+                &raw const nst,
+                &raw const k,
+                x.as_ptr(),
+                y.as_ptr(),
+                z.as_ptr(),
+                list.as_mut_ptr(),
+                lptr.as_mut_ptr(),
+                lend.as_mut_ptr(),
+                &raw mut *lnew,
+                &raw mut ier,
+            );
+        };
+
+        ier
+    }
+
+    #[rstest]
+    fn test_addnod_adds_fourth_node_to_tetrahedron(tetrahedron: (Vec<f64>, Vec<f64>, Vec<f64>)) {
+        let mut x = tetrahedron.0[0..3].to_vec();
+        let mut y = tetrahedron.1[0..3].to_vec();
+        let mut z = tetrahedron.2[0..3].to_vec();
+
+        let n = 3i32;
+        let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+
+        x.push(tetrahedron.0[3]);
+        y.push(tetrahedron.1[3]);
+        z.push(tetrahedron.2[3]);
+
+        let new_list_size = 6 * (n + 1 - 2) as usize;
+        list.resize(new_list_size, 0);
+        lptr.resize(new_list_size, 0);
+        lend.resize(n as usize + 1, 0);
+
+        let k = n + 1;
+        let nst = 1i32;
+
+        let add_ier = add_node_to_triangulation(
+            nst, k, &x, &y, &z, &mut list, &mut lptr, &mut lend, &mut lnew,
+        );
+
+        assert_eq!(add_ier, 0, "addnod should succeed");
+        assert!(lnew > 0, "lnew should be positive after adding node");
     }
 }

@@ -42,6 +42,19 @@ unsafe extern "C" {
         ier: *mut c_int,
     );
 
+    /// Computes the arc cosine function, with argument truncation.
+    ///
+    /// If you call your system `acos` routine with an input argument that is outside the range `[-1.0,
+    /// 1.0]` you may get an unpleasant surprise. This routine truncates arguments outside the range.
+    /// # Arguments
+    ///
+    /// * `c` - Input. The argument
+    ///
+    /// # Returns
+    /// * An angle whose cosine is `c`
+    #[link_name = "arc_cosine_"]
+    pub fn arc_cosine(c: *const c_double) -> c_double;
+
     /// Computes the area of a spherical triangle on the unit sphere.
     ///
     /// # Arguments
@@ -990,5 +1003,13 @@ mod test {
 
         assert_eq!(add_ier, 0, "addnod should succeed");
         assert!(lnew > 0, "lnew should be positive after adding node");
+    }
+
+    proptest! {
+        #[test]
+        fn test_arc_cosine(c in -10.0f64..10.0f64) {
+            let acos = unsafe { arc_cosine(&raw const c) };
+            prop_assert!((acos - c.clamp(-1.0, 1.0).acos()).abs() < f64::EPSILON);
+        }
     }
 }

@@ -165,6 +165,34 @@ unsafe extern "C" {
         pnrm: *mut c_double,
     );
 
+    /// Decides whether to replace a diagonal arc by the other in a quadrilateral. The decision
+    /// will be to swap (`swptst = true`) if and only if `n4` lies above the plane (in the half-space
+    /// not containing the origin) defined by (`n1`, `n2`, `n3`), or equivalently, if the projection of
+    /// `n4` onto this plane is interior to the circumcircle of (`n1`, `n2`, `n3`). The decision will be
+    /// for no swap if the quadrilateral is not strictly convex.
+    ///
+    /// # Arguments
+    ///
+    /// * `n1`, `n2`, `n3`, `n4` - Input. The indexes of the four nodes defining the quadrilateral with
+    ///   `n1` adjacent to `n2`, and (`n1`, `n2`, `n3`) in counterclockwise order. The arc connecting `n1`
+    ///   to `n2` should be replaced by an arc connection `n3` to `n4` if `swptst = true`. Refer to
+    ///   subroutine `swap`.
+    /// * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes.
+    ///
+    /// # Returns
+    ///
+    /// True if and only if the arc connecting `n1` and `n2` should be swapped for an arc connecting `n3` and `n4`.
+    #[link_name = "swptst_"]
+    pub fn swptst(
+        n1: *const c_int,
+        n2: *const c_int,
+        n3: *const c_int,
+        n4: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+    ) -> bool;
+
     /// Transform spherical coordinates into Cartesian coordinates
     /// on the unit sphere for input to `trmesh`. Storage for X and Y
     /// may coincide with storage for `rlat` and `rlon` if the latter
@@ -1084,6 +1112,56 @@ mod test {
             let stp = scalar_triple_product(&n0, &n1, &n2);
             let result = is_left(&n1, &n2, &n0);
             prop_assert_eq!(result, stp >= 0.0);
+        }
+    }
+
+    fn should_swap(n1: i32, n2: i32, n3: i32, n4: i32, x: &[f64], y: &[f64], z: &[f64]) -> bool {
+        unsafe {
+            swptst(
+                &raw const n1,
+                &raw const n2,
+                &raw const n3,
+                &raw const n4,
+                x.as_ptr(),
+                y.as_ptr(),
+                z.as_ptr(),
+            )
+        }
+    }
+
+    fn swap_determinant(n1: &[f64], n2: &[f64], n3: &[f64], n4: &[f64]) -> f64 {
+        let dx1 = n1[0] - n4[0];
+        let dy1 = n1[1] - n4[1];
+        let dz1 = n1[2] - n4[2];
+
+        let dx2 = n2[0] - n4[0];
+        let dy2 = n2[1] - n4[1];
+        let dz2 = n2[2] - n4[2];
+
+        let dx3 = n3[0] - n4[0];
+        let dy3 = n3[1] - n4[1];
+        let dz3 = n3[2] - n4[2];
+
+        dx3 * (dy2 * dz1 - dy1 * dz2) - dy3 * (dx2 * dz1 - dx1 * dz2)
+            + dz3 * (dx2 * dy1 - dx1 * dy2)
+    }
+
+    proptest! {
+        #[test]
+        fn test_swptst(
+            n1 in unit_vector(),
+            n2 in unit_vector(),
+            n3 in unit_vector(),
+            n4 in unit_vector()
+        ) {
+            let x = vec![n1[0], n2[0], n3[0], n4[0]];
+            let y = vec![n1[1], n2[1], n3[1], n4[1]];
+            let z = vec![n1[2], n2[2], n3[2], n4[2]];
+
+            let det = swap_determinant(&n1, &n2, &n3, &n4);
+            let result = should_swap(1, 2, 3, 4, &x, &y, &z);
+
+            prop_assert_eq!(result, det > 0.0);
         }
     }
 }

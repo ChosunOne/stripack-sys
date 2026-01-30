@@ -79,6 +79,41 @@ unsafe extern "C" {
     pub fn areas(v1: *const c_double, v2: *const c_double, v3: *const c_double) -> c_double;
 
     /**
+    Adds a boundary node to a triangulation.
+
+    This subroutine adds a boundary node to a triangulation of a set
+    of `kk - 1` points on the unit sphere. The data structure is
+    updated with the insertion of node `kk`, but no optimizaiton is
+    performed.
+
+    This routine is identical to the similarly named routine in
+    TRIPACK.
+
+    # Arguments
+
+    * `kk` - Input. The index of a node to be connected to the
+      sequence of all visible boundary nodes. 1 <= `kk` and
+      `kk` must not be equal to `i1` or `i2`.
+    * `i1` - Input. The first (rightmost as viewed from `kk`)
+      boundary node in the triangulation that is visible from
+      node `kk` (the line segment `kk-i1` intersects no arcs).
+    * `i2` - Input. The last (leftmost) boundary node that is visible
+      from node `kk`. `i1` and `i2` may be determined by `trfind`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
+      triangulation data structure created by `trmesh`. Nodes `i1` and `i2` must be included in the triangulation. On output, the data structure is updated with the addition of node `kk`. Node `kk` is connected to `i1`, `i2`, and all boundary nodes in between.
+     **/
+    #[link_name = "bdyadd_"]
+    pub fn bdyadd(
+        kk: *const c_int,
+        i1: *const c_int,
+        i2: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+    );
+
+    /**
     Returns the boundary nodes of a triangulation. Given a triangulation of `n` nodes on the
     unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
 
@@ -1764,6 +1799,92 @@ mod test {
 
             let next_of_new = lptr[(lnew_before - 1) as usize];
             prop_assert!(next_of_new > 0 && next_of_new <= list.len() as i32, "New entry should point to valid position");
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_bdyadd(n in 5..15i32) {
+            let (x, y, z) = hemisphere();
+            let n_base = 5i32;
+
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n_base, &x, &y, &z);
+
+            let mut nodes = vec![0i32; n_base as usize];
+            let mut nb = 0i32;
+            let mut na = 0i32;
+            let mut nt = 0i32;
+
+            unsafe {
+                bnodes(
+                    &raw const n_base,
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    nodes.as_mut_ptr(),
+                    &raw mut nb,
+                    &raw mut na,
+                    &raw mut nt,
+                );
+            }
+
+            if nb < 2 || lnew as usize >= list.len() {
+                return Ok(());
+            }
+
+            let i1 = nodes[0];
+            let i2 = nodes[1];
+            let kk = n_base + 1;
+
+            let new_size = list.len() + 10;
+            list.resize(new_size, 0);
+            lptr.resize(new_size, 0);
+            lend.resize(n_base as usize + 1, 0);
+
+            let lnew_before = lnew;
+
+            unsafe {
+                bdyadd(
+                    &raw const kk,
+                    &raw const i1,
+                    &raw const i2,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut lnew,
+                );
+            }
+
+            prop_assert!(lnew > lnew_before, "bdyadd should increment lnew");
+            prop_assert!(lend[(kk - 1) as usize] > 0, "New node should have valid lend");
+
+            let lpl_kk = lend[(kk - 1) as usize];
+            let ptr_i1 = find_node_pointer(lpl_kk, i1, &list, &lptr);
+            prop_assert!(ptr_i1 > 0, "i1 should be a neighbor of kk");
+            prop_assert_eq!(list[(ptr_i1 - 1) as usize].abs(), i1);
+
+            let ptr_i2 = find_node_pointer(lpl_kk, i2, &list, &lptr);
+            prop_assert!(ptr_i2 > 0, "i2 should be a neighbor of kk");
+            prop_assert_eq!(list[(ptr_i2 - 1) as usize].abs(), i2);
+
+            for node in 1..=kk {
+                let lpl = lend[(node - 1) as usize];
+                prop_assert!(lpl > 0, "Node {node} should have valid lend");
+
+                let mut current = lpl;
+                let mut count = 0;
+                loop {
+                    let neighbor = list[(current - 1) as usize].abs();
+                    prop_assert!(neighbor >= 1 && neighbor <= kk, "Node {node} neighbor {neighbor} out of range");
+
+                    count += 1;
+                    current = lptr[(current - 1) as usize];
+                    if current == lpl {
+                        break;
+                    }
+                    prop_assert!(count <= 6 * (kk - 2), "Infinite loop in adjacency list");
+                }
+            }
         }
     }
 }

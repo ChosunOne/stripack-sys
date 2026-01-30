@@ -117,6 +117,33 @@ unsafe extern "C" {
         ier: *mut c_int,
     );
 
+    /// Determines whether a node is left of a plane through the origin.
+    ///
+    /// This function determines whether node `n0` is in the (closed) left hemisphere defined by the
+    /// plane containing `n1`, `n2`, and the origin, where left is defined relative to an observer at
+    /// `n1` facing `n2`.
+    ///
+    /// # Arguments
+    ///
+    /// * `x1`, `y1`, `z1` - Input. The coordinates of `n1`.
+    /// * `x2`, `y2`, `z2` - Input. The coordinates of `n2`.
+    /// * `x0`, `y0`, `z0` - Input. The coordinates of `n0`.
+    ///
+    /// # Returns
+    /// True if and only if `n0` is in the closed left hemisphere.
+    #[link_name = "left_"]
+    pub fn left(
+        x1: *const c_double,
+        y1: *const c_double,
+        z1: *const c_double,
+        x2: *const c_double,
+        y2: *const c_double,
+        z2: *const c_double,
+        x0: *const c_double,
+        y0: *const c_double,
+        z0: *const c_double,
+    ) -> bool;
+
     /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
     ///
     /// # Arguments
@@ -1010,6 +1037,53 @@ mod test {
         fn test_arc_cosine(c in -10.0f64..10.0f64) {
             let acos = unsafe { arc_cosine(&raw const c) };
             prop_assert!((acos - c.clamp(-1.0, 1.0).acos()).abs() < f64::EPSILON);
+        }
+    }
+
+    fn scalar_triple_product(n0: &[f64], n1: &[f64], n2: &[f64]) -> f64 {
+        let cross_x = n1[1] * n2[2] - n1[2] * n2[1];
+        let cross_y = n1[2] * n2[0] - n1[0] * n2[2];
+        let cross_z = n1[0] * n2[1] - n1[1] * n2[0];
+
+        n0[0] * cross_x + n0[1] * cross_y + n0[2] * cross_z
+    }
+
+    fn is_left(n1: &[f64], n2: &[f64], n0: &[f64]) -> bool {
+        unsafe {
+            left(
+                &raw const n1[0],
+                &raw const n1[1],
+                &raw const n1[2],
+                &raw const n2[0],
+                &raw const n2[1],
+                &raw const n2[2],
+                &raw const n0[0],
+                &raw const n0[1],
+                &raw const n0[2],
+            )
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn left_agrees_with_scalar_triple_product(n1 in unit_vector(), n2 in unit_vector(), n0 in unit_vector()) {
+            let stp = scalar_triple_product(&n0, &n1, &n2);
+            let result = is_left(&n1, &n2, &n0);
+
+            prop_assert_eq!(result, stp >= -f64::EPSILON);
+        }
+
+        #[test]
+        fn left_boundary_points_return_true(n1 in unit_vector(), n2 in unit_vector(), coeff1 in -1.0f64..1.0, coeff2 in -1.0f64..1.0) {
+            let n0 = [
+                coeff1 * n1[0] + coeff2 * n2[0],
+                coeff1 * n1[1] + coeff2 * n2[1],
+                coeff1 * n1[2] + coeff2 * n2[2],
+            ];
+
+            let stp = scalar_triple_product(&n0, &n1, &n2);
+            let result = is_left(&n1, &n2, &n0);
+            prop_assert_eq!(result, stp >= 0.0);
         }
     }
 }

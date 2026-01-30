@@ -163,6 +163,29 @@ unsafe extern "C" {
     );
 
     /**
+    Connects an exterior node to boundary nodes, covering the sphere.
+
+    This subroutine connects an exterior node `kk` to all boundary nodes of a triangulation of `kk - 1` points on the unit sphere, producing a triangulation that covers the sphere. The data structure is updated with the addition of node `kk`, but no optimization is performed. All boundary nodes must be visible from node `kk`.
+
+    # Arguments
+
+    * `kk` - Input. Index of the node to be connected to the set of all boundary nodes. `4 <= kk`.
+    * `n0` - Input. Index of a boundary node (in the range `1` to `kk - 1`). `n0` may be
+      determined by `trfind`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
+    triangulation data structure created by `trmesh`. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
+    **/
+    #[link_name = "covsph_"]
+    pub fn covsph(
+        kk: *const c_int,
+        n0: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+    );
+
+    /**
     Swaps arcs to force two nodes to be adjacent.
 
     Given a triangulation of `n` nodes and a pair of nodal indexes `in1` and `in2`, this routine
@@ -996,12 +1019,30 @@ mod test {
     }
 
     #[fixture]
-    fn hemisphere() -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    fn hemisphere_fixed() -> (Vec<f64>, Vec<f64>, Vec<f64>) {
         let x = vec![1.0, 0.0, -1.0, 0.0, 0.0];
         let y = vec![0.0, 1.0, 0.0, -1.0, 0.0];
         let z = vec![0.0, 0.0, 0.0, 0.0, 1.0];
 
         (x, y, z)
+    }
+
+    fn hemisphere(n: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+        let (x, y, z) = fibonacci_sphere(n * 2);
+
+        let mut hx = Vec::with_capacity(n);
+        let mut hy = Vec::with_capacity(n);
+        let mut hz = Vec::with_capacity(n);
+
+        for i in 0..x.len() {
+            if z[i] >= 0.0 && hx.len() < n {
+                hx.push(x[i]);
+                hy.push(y[i]);
+                hz.push(z[i]);
+            }
+        }
+
+        (hx, hy, hz)
     }
 
     #[rstest]
@@ -1015,12 +1056,12 @@ mod test {
         #[case] expected_na: i32,
         #[case] expected_nt: i32,
         tetrahedron: (Vec<f64>, Vec<f64>, Vec<f64>),
-        hemisphere: (Vec<f64>, Vec<f64>, Vec<f64>),
+        hemisphere_fixed: (Vec<f64>, Vec<f64>, Vec<f64>),
     ) {
         let (x, y, z) = if n == 4 {
             tetrahedron
         } else if n == 5 {
-            hemisphere
+            hemisphere_fixed
         } else {
             fibonacci_sphere(n as usize)
         };
@@ -1821,7 +1862,7 @@ mod test {
 
     #[test]
     fn test_bdyadd() {
-        let (x, y, z) = hemisphere();
+        let (x, y, z) = hemisphere_fixed();
         let n_base = 5i32;
 
         let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n_base, &x, &y, &z);
@@ -2010,6 +2051,74 @@ mod test {
                 let ptr = find_node_pointer(lpl_vertex, kk, &list, &lptr);
                 prop_assert!(ptr > 0, "kk should be a neighbor of vertex {}", vertex);
                 prop_assert_eq!(list[(ptr - 1) as usize].abs(), kk, "Vertex {} should have kk as a neighbor", vertex);
+            }
+
+            check_triangulation(kk, &list, &lend, &lptr);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_covsph(n in 5..25i32) {
+            let (x, y, z) = hemisphere(n as usize);
+            let n_hemi = x.len() as i32;
+
+            if n_hemi < 4 {
+                return Ok(());
+            }
+
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n_hemi, &x, &y, &z);
+
+            let mut nodes = vec![0i32; n_hemi as usize];
+            let mut nb = 0i32;
+            let mut na = 0i32;
+            let mut nt = 0i32;
+
+            unsafe {
+                bnodes(
+                    &raw const n_hemi,
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    nodes.as_mut_ptr(),
+                    &raw mut nb,
+                    &raw mut na,
+                    &raw mut nt,
+                );
+            }
+
+            if nb < 3 {
+                return Ok(());
+            }
+
+            let new_size = list.len() + (2 * nb as usize);
+            list.resize(new_size, 0);
+            lptr.resize(new_size, 0);
+            lend.resize(n_hemi as usize + 1, 0);
+
+            let n0 = nodes[0];
+            let kk = n_hemi + 1;
+
+            unsafe {
+                covsph(
+                    &raw const kk,
+                    &raw const n0,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut lnew,
+                );
+            }
+
+            for i in 0..nb as usize {
+                let lpl = lend[(nodes[i] - 1) as usize];
+                prop_assert!(list[(lpl - 1) as usize] > 0);
+            }
+
+            let lpl_kk = lend[(kk - 1) as usize];
+            for i in 0..nb as usize {
+                let ptr = find_node_pointer(lpl_kk, nodes[i], &list, &lptr);
+                prop_assert!(ptr > 0);
             }
 
             check_triangulation(kk, &list, &lend, &lptr);

@@ -88,6 +88,45 @@ unsafe extern "C" {
         z: *mut c_double,
     );
 
+    /// Locates a point `p` relative to a triangulation created by `trmesh`. If `p` is contained
+    /// in a triangle, the three vertex indexes and barycentric coordinates are returned. Otherwise, the
+    /// indexes of the visible boundary nodes are returned.
+    ///
+    /// # Arguments
+    /// * `nst` - Input. The index of a node at which `trfind` begins its search. Search time depends on
+    ///   the proximity of this node to `p`.
+    /// * `p[3]` - Input. The x, y, and z coordinates (in that order) of the point `p` to be located.
+    /// * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    /// * `x[n]`, `y[n]`, `z[n]`, the coordinates of the triangulation nodes (unit vectors).
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure defining the
+    ///   triangulation, created by `trmesh`.
+    ///   `b1`, `b2`, `b3` - Output. The unnormalized barycentric coordinates of the central projection of
+    ///   `p` onto the underlying planar triangle if `p` is in the convex hull of the nodes. These
+    ///   parameters are not altered if `i1 = 0`.
+    /// * `i1`, `i2`, `i3` - Output. The counterclockwise-ordered vertex indexes of a triangle
+    ///   containing `p` if `p` is contained in a triangle. If `p` is not in the convex hull of
+    ///   the nodes, `i1` and `i2` are the rightmost and leftmost (boundary) nodes that are visible from
+    ///   `p`, and `i3 = 0`. (If all boundary nodes are visible from `p`, then `i1` and `i2` coincide.)
+    ///   `i1 = i2 = i3 = 0` if `p` and all of the nodes are coplanar (lie on a common great circle).
+    #[link_name = "trfind_"]
+    pub fn trfind(
+        nst: *const c_int,
+        p: *const c_double,
+        n: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        b1: *mut c_double,
+        b2: *mut c_double,
+        b3: *mut c_double,
+        i1: *mut c_int,
+        i2: *mut c_int,
+        i3: *mut c_int,
+    );
+
     /// Convert a triangulation data structure into a triangle list.
     ///
     /// # Arguments
@@ -227,6 +266,7 @@ unsafe extern "C" {
 
 #[cfg(test)]
 mod test {
+    use proptest::prelude::*;
     use rstest::{fixture, rstest};
 
     use super::*;
@@ -641,6 +681,92 @@ mod test {
             for i in 0..nb as usize {
                 assert_eq!(nodes[i], expected_boundary[i], "boundary node {i} mismatch");
             }
+        }
+    }
+
+    fn create_triangulation(
+        n: i32,
+        x: &[f64],
+        y: &[f64],
+        z: &[f64],
+    ) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+        let list_size = (6 * (n - 2)) as usize;
+        let mut list = vec![0i32; list_size];
+        let mut lptr = vec![0i32; list_size];
+        let mut lend = vec![0i32; n as usize];
+        let mut lnew = 0i32;
+
+        let mut near = vec![0i32; n as usize];
+        let mut next = vec![0i32; n as usize];
+        let mut dist = vec![0.0f64; n as usize];
+        let mut ier = 0i32;
+
+        unsafe {
+            trmesh(
+                &raw const n,
+                x.as_ptr(),
+                y.as_ptr(),
+                z.as_ptr(),
+                list.as_mut_ptr(),
+                lptr.as_mut_ptr(),
+                lend.as_mut_ptr(),
+                &raw mut lnew,
+                near.as_mut_ptr(),
+                next.as_mut_ptr(),
+                dist.as_mut_ptr(),
+                &raw mut ier,
+            );
+        };
+
+        assert_eq!(ier, 0, "trmesh failed");
+
+        (list, lptr, lend)
+    }
+
+    proptest! {
+        #[test]
+        fn trfind_locates_any_interior_point(px in -1.0f64..1.0, py in -1.0f64..1.0, pz in -1.0f64..1.0, n in 6..20) {
+            let norm = (px * px + py * py + pz * pz).sqrt();
+            if norm < f64::EPSILON {
+                return Ok(());
+            }
+            let p = [px / norm, py / norm, pz / norm];
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, lend) = create_triangulation(n, &x, &y, &z);
+
+            let nst = 1;
+            let mut b1 = 0.0;
+            let mut b2 = 0.0;
+            let mut b3 = 0.0;
+            let mut i1 = 0i32;
+            let mut i2 = 0i32;
+            let mut i3 = 0i32;
+
+            unsafe {
+                trfind(
+                    &raw const nst,
+                    p.as_ptr(),
+                    &raw const n,
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    &raw mut b1,
+                    &raw mut b2,
+                    &raw mut b3,
+                    &raw mut i1,
+                    &raw mut i2,
+                    &raw mut i3,
+                );
+            };
+
+            prop_assert!(i3 > 0, "i3 should be > 0");
+            prop_assert!(i1 >= 1 && i1 <= n, "i1 should be a valid node index");
+            prop_assert!(i2 >= 1 && i2 <= n, "i2 should be a valid node index");
+            prop_assert!(i3 >= 1 && i3 <= n, "i3 should be a valid node index");
+            prop_assert!(b1 > 0.0 && b2 > 0.0 && b3 > 0.0, "barycentric coords should be positive for an interior point");
         }
     }
 }

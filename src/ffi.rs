@@ -185,6 +185,35 @@ unsafe extern "C" {
         pnrm: *mut c_double,
     );
 
+    /// Replaces the diagonal arc of a quadrilateral with the other diagonal.
+    ///
+    /// Given a triangulation of a set of points on the unit sphere, this subroutine replaces a diagonal
+    /// arc in a strictly convex quadrilateral (defined by a pair of adjacent triangles) with the other
+    /// diagonal. Equivalently, a pair of adjacent triangles is replaced by another pair having the same
+    /// union.
+    ///
+    /// # Arguments
+    ///
+    /// * `in1`, `in2`, `io1`, `io2` - Input. Nodal indexes of the vertices of the quadrilateral. `io1 -
+    /// io2` is replaced by `in1 - in2`. (`io1`, `io2`, `in1`) and (`io2`, `io1`, `in2`) must be
+    ///   triangles on input.
+    ///
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input/output. The data structure
+    ///   defining the triangulation, created by `trmesh`. On output, updated with the swap; triangles
+    ///   (`io1`, `io2`, `in1`) and (`io2`, `io1`, `in2`) are replaced by (`in1`, `in2`, `io2`) and (`in2`, `in1`, `io1`) unless `lp21 = 0`.
+    /// * `lp21` - Output. Index of `in1` as a neighbor of `in2` after the swap is performed unless `in1` and `in2` are adjacent on input, in which case `lp21 = 0`.
+    #[link_name = "swap_"]
+    pub fn swap(
+        in1: *const c_int,
+        in2: *const c_int,
+        io1: *const c_int,
+        io2: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lp21: *mut c_int,
+    );
+
     /// Decides whether to replace a diagonal arc by the other in a quadrilateral. The decision
     /// will be to swap (`swptst = true`) if and only if `n4` lies above the plane (in the half-space
     /// not containing the origin) defined by (`n1`, `n2`, `n3`), or equivalently, if the projection of
@@ -1232,6 +1261,119 @@ mod test {
                 }
 
                 prop_assert!(neighbor_count >= 2, "Node {node_idx} should have at least 2 neighbors, found {neighbor_count}");
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_swap(n in 6..20i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, _) = create_triangulation(n, &x, &y, &z);
+
+            let nrow = 6i32;
+            let max_triangles = (2 * n - 4) as usize;
+            let mut ltri = vec![0i32; (nrow as usize) * max_triangles];
+            let mut nt = 0i32;
+            let mut ier = 0i32;
+
+            unsafe {
+                trlist(
+                    &raw const n,
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    &raw const nrow,
+                    &raw mut nt,
+                    ltri.as_mut_ptr(),
+                    &raw mut ier,
+                );
+            }
+
+            prop_assert_eq!(ier, 0, "trlist failed");
+            prop_assert!(nt >= 2, "Need at least 2 triangles for a swap");
+
+
+            'outer: for t1 in 0..(nt as usize) {
+                for t2 in (t1 + 1)..(nt as usize) {
+                    let v1_0 = ltri[t1 * 6 + 0];
+                    let v1_1 = ltri[t1 * 6 + 1];
+                    let v1_2 = ltri[t1 * 6 + 2];
+
+                    let v2_0 = ltri[t2 * 6 + 0];
+                    let v2_1 = ltri[t2 * 6 + 1];
+                    let v2_2 = ltri[t2 * 6 + 2];
+
+                    let verts1 = [v1_0, v1_1, v1_2];
+                    let verts2 = [v2_0, v2_1, v2_2];
+
+                    let mut shared = vec![];
+                    let mut unique1 = None;
+                    let mut unique2 = None;
+
+                    for &v in &verts1 {
+                        if verts2.contains(&v) {
+                            shared.push(v);
+                        } else {
+                            unique1 = Some(v);
+                        }
+                    }
+
+                    for &v in &verts2 {
+                        if !verts1.contains(&v) {
+                            unique2 = Some(v);
+                        }
+                    }
+
+                    if !(shared.len() == 2 && unique1.is_some() && unique2.is_some()) {
+                        continue;
+                    }
+
+                    let io1 = shared[0];
+                    let io2 = shared[1];
+                    let in1 = unique1.unwrap();
+                    let in2 = unique2.unwrap();
+
+                    let lpl_io1 = lend[(io1 - 1) as usize];
+                    let ptr_io2 = find_node_pointer(lpl_io1, io2, &list, &lptr);
+
+                    if !(ptr_io2 > 0 && list[(ptr_io2 - 1) as usize].abs() == io2) {
+                        continue;
+                    }
+
+                    let lpl_in1 = lend[(in1 - 1) as usize];
+                    let ptr_in2_check = find_node_pointer(lpl_in1, in2, &list, &lptr);
+                    if list[(ptr_in2_check - 1) as usize].abs() == in2 {
+                        continue;
+                    }
+
+                    if !should_swap(in1, in2, io1, io2, &x, &y, &z) {
+                        continue;
+                    }
+
+                    let mut lp21 = 0i32;
+                    unsafe {
+                        swap(
+                            &raw const in1,
+                            &raw const in2,
+                            &raw const io1,
+                            &raw const io2,
+                            list.as_mut_ptr(),
+                            lptr.as_mut_ptr(),
+                            lend.as_mut_ptr(),
+                            &raw mut lp21,
+                        );
+                    };
+
+                    prop_assert!(lp21 > 0, "Swap should succeed with lp21 > 0");
+
+                    let lpl_in2 = lend[(in2 - 1) as usize];
+                    let ptr_in1 = find_node_pointer(lpl_in2, in1, &list, &lptr);
+                    prop_assert!(ptr_in1 > 0, "IN1 should be neighbor of IN2 after swap");
+                    prop_assert_eq!(list[(ptr_in1 - 1) as usize].abs(), in1);
+
+                    break 'outer;
+                }
             }
         }
     }

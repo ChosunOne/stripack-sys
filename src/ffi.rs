@@ -185,6 +185,33 @@ unsafe extern "C" {
     );
 
     /**
+    Inserts `k` as a neighbor of `n1`.
+
+    This subroutine inserts `k` as a neighbor of `n1` following `n2`,
+    where `lp` is the `list` pointer of `n2` as a neighbor of `n1`.
+    Note that, if `n2` is the last neighbor of `n1`, K will become
+    the first neighbor (even if `n1` is a boundary node).
+
+    This routine is identical to the similarly named routine in
+    TRIPACK.
+
+    # Arguments
+
+    * `k` - Input. The index of the node to be inserted.
+    * `lp` - Input. The `list` pointer of `n2` as a neighbor of `n1`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lnew` - Input/Output.
+      The data structure defining the triangulation, created by `trmesh`. On output, updated with the addition of node `k`
+    **/
+    #[link_name = "insert_"]
+    pub fn insert(
+        k: *const c_int,
+        lp: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lnew: *mut c_int,
+    );
+
+    /**
     Determines whether a node is left of a plane through the origin.
 
     This function determines whether node `n0` is in the (closed) left hemisphere defined by the
@@ -1678,6 +1705,65 @@ mod test {
             }
 
             prop_assert!(lwk >= 0 && lwk <= max_lwk as i32, "lwk should be in valid range [0, {max_lwk}], got {lwk}");
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_insert(n in 6..15i32, insertion_point in 1..3usize) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+
+            let lpl = lend[0];
+
+            let mut lp = lpl;
+            for _ in 0..insertion_point {
+                lp = lptr[(lp - 1) as usize];
+            }
+
+            let k = n;
+
+            let mut current = lpl;
+            let mut already_neighbor = false;
+            loop {
+                if list[(current - 1) as usize].abs() == k as i32 {
+                    already_neighbor = true;
+                    break;
+                }
+
+                current = lptr[(current - 1) as usize];
+                if current == lpl {
+                    break;
+                }
+            }
+
+            if already_neighbor {
+                return Ok(());
+            }
+
+            let lnew_before = lnew;
+
+            let current_size = list.len();
+            list.resize(current_size + 1, 0);
+            lptr.resize(current_size + 1, 0);
+
+            unsafe {
+                insert(
+                    &raw const k,
+                    &raw const lp,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    &raw mut lnew
+                );
+            }
+
+            prop_assert_eq!(lnew, lnew_before + 1, "lnew should increment by 1");
+            prop_assert_eq!(list[(lnew_before - 1) as usize], k, "k should be at position {}", lnew_before);
+            let next_after_insert = lptr[(lp - 1) as usize];
+            prop_assert_eq!(next_after_insert, lnew_before, "lp should now point ot new entry");
+
+            let next_of_new = lptr[(lnew_before - 1) as usize];
+            prop_assert!(next_of_new > 0 && next_of_new <= list.len() as i32, "New entry should point to valid position");
         }
     }
 }

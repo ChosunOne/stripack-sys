@@ -164,6 +164,50 @@ unsafe extern "C" {
         lptr: *const c_int,
     ) -> c_int;
 
+    /// Optimizes the quadrilateral portion of a triangulation.
+    ///
+    /// Given a set of `na` triangulation arcs, this subroutine optimizes the portion of the
+    /// triangulation consisting of the quadrilaterals (pairs of adjacent triangles) which have the arcs
+    /// as diagonals by applying the circumcircle test and appropriate swaps to the arcs.
+    ///
+    /// An iteration consists of applying the swap test and swaps to all `na` arcs in the order in which
+    /// they are stored. The iteration is repeated until no swap occurs or `nit` iterations have
+    /// been performed. The bound on the number of iterations may be necessary to prevent an infinite
+    /// loop caused by cycling (reversing the effect of a previous swap) due to floating point
+    /// inaccuracy when four or more nodes are nearly cocircular.
+    ///
+    /// # Arguments
+    ///
+    /// * `x[*]`, `y[*]`, `z[*]` - Input. The nodal coordinates.
+    /// * `na` - Input. The number of arcs in the set. `na >= 0`.
+    /// * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input/output. The data structure
+    ///   defining the triangulation, created by `trmesh`. On output, updated to reflect the swaps.
+    /// * `nit` - Input/output. On input, the maximum number of iterations to be performed. `nit = 4 *
+    /// na` should be sufficient. `nit >= 1`. On output, the number of iterations performed.
+    /// * `iwk[2][na]` - Input/output. The nodal indexes of the arc endpoints (paris of endpoints are
+    ///   stored in columns). On output, endpoint indexes of the new set of arcs reflecting the swaps.
+    /// * `ier` - Output. Error indicator:
+    ///   `0`, if no errors were encountered.
+    ///   `1`, if a swap occurred on the last of `maxit` iterations, where `maxit` is the value of
+    ///   `nit` on input. The new set of arcs is not necessarily optimal in this case.
+    ///   `2`, if `na < 0` or `nit < 1` on input
+    ///   `3`, if `iwk[2][i]` is not a neighbor of `iwk[1][i]` for some `i` in the range `1` to `na`. A
+    ///   swap may have occurred in this case.
+    ///   `4`, if a zero pointer was returned by subroutine `swap`.
+    #[link_name = "optim_"]
+    pub fn optim(
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        na: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        nit: *mut c_int,
+        iwk: *mut c_int,
+        ier: *mut c_int,
+    );
+
     /// Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
     ///
     /// # Arguments
@@ -1374,6 +1418,90 @@ mod test {
 
                     break 'outer;
                 }
+            }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_optim(n in 8..30i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, _) = create_triangulation(n, &x, &y, &z);
+
+            let mut na = 0i32;
+            let max_arcs = (3 * n) as usize;
+            let mut iwk = vec![0i32; 2 * max_arcs];
+
+            for node in 1..n {
+                let lpl = lend[(node - 1) as usize];
+                let mut current = lpl;
+
+                loop {
+                    let neighbor = list[(current - 1) as usize].abs();
+                    if node < neighbor {
+                        iwk[na as usize * 2] = node;
+                        iwk[na as usize * 2 + 1] = neighbor;
+                        na += 1;
+                        if na >= 20 {
+                            break;
+                        }
+                    }
+
+                    current = lptr[(current - 1) as usize];
+                    if current == lpl {
+                        break;
+                    }
+                }
+
+                if na >= 20 {
+                    break;
+                }
+            }
+
+            prop_assert!(na > 0, "Should have at least one arc to optimize");
+
+            let mut nit = 100i32;
+            let mut ier = 0i32;
+
+            unsafe {
+                optim(
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    &raw const na,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut nit,
+                    iwk.as_mut_ptr(),
+                    &raw mut ier,
+                );
+            }
+
+            prop_assert!(ier == 0 || ier == 1, "optim failed");
+
+            for node in 1..=n {
+                let lpl = lend[(node - 1) as usize];
+                prop_assert!(lpl > 0, "Node {node} should have lend after optim");
+
+                let mut current = lpl;
+                let mut count = 0;
+                loop {
+                    let neighbor = list[(current - 1) as usize].abs();
+                    prop_assert!(neighbor >= 1 && neighbor <= n, "Node {node} neighbor {neighbor} out of range");
+                    count += 1;
+                    current = lptr[(current - 1) as usize];
+
+                    if current == lpl {
+                        break;
+                    }
+
+                    prop_assert!(count <= 6 * (n - 2), "Infinite loop detected in adjacency list");
+                }
+            }
+
+            if ier == 0 {
+                prop_assert!(nit < 100, "Converged but used all iterations");
             }
         }
     }

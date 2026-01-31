@@ -190,6 +190,39 @@ unsafe extern "C" {
     );
 
     /**
+    Deletes a boundary arc from a triangulation.
+
+    This subroutine deletes a boundary arc from a triangulation. It may be used to remove a null triangle from the convex hull boundary. Note, however, that if the union of triangles is rendered nonconvex, subroutines `delnod`, `edge`, and `trfind` (and hence `addnod`) may fail. Also, function `nearnd` should not be called following an arc deletion.
+
+    This routine is identical to the similarly named routine in TRIPACK.
+
+    # Arguments
+
+    * `n` - Input. The number of nodes in the triangulation. `4 <= n`.
+    * `io1`, `io2` - Input. Indexes (in the range of `1` to `n`) of a pair of adjacent boundary
+      nodes defining the arc to be removed.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The triangulation
+      data structure created by `trmesh`. On output, updated with the removal of arc `io1-io2` unless `0 < ier`.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `n`, `io1`, or `io2` is outside its valid range, or `io1 = io2`.
+      `2`, if `io1-io2` is not a boundary arc.
+      `3`, if the node opposite `io1-io2` is already a boundary node, and thus `io1` or `io2` has only two neighbors or a deletion would result in two triangulations sharing a single node.
+      `4`, if one of the nodes is a neighbor of the other, but not vice versa, implying an invalid triangulation data structure.
+     */
+    #[link_name = "delarc_"]
+    pub fn delarc(
+        n: *const c_int,
+        io1: *const c_int,
+        io2: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+        ier: *mut c_int,
+    );
+
+    /**
     Deletes a neighbor from the adjacency list.
 
     This subroutine deletes a neighbor `nb` from the adjacency list of node `n0` (but `n0` is not deleted from the adjacency list of `nb`) and, if `nb` is a boundary node, makes `n0` a boundary node.
@@ -2513,6 +2546,71 @@ mod test {
 
             prop_assert!(lph > 0, "delnb failed");
             prop_assert!(lnew <= lnew_before, "lnew should decrease or stay the same, got {lnew} expected <= {lnew_before}");
+
+            check_triangulation(n, &list, &lend, &lptr);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_delarc(n in 5..25i32) {
+            let (x, y, z) = hemisphere(n as usize);
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+
+            let mut nodes = vec![0i32; n as usize];
+            let mut nb = 0i32;
+            let mut na = 0i32;
+            let mut nt = 0i32;
+
+            unsafe {
+                bnodes(
+                    &raw const n,
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    nodes.as_mut_ptr(),
+                    &raw mut nb,
+                    &raw mut na,
+                    &raw mut nt,
+                );
+            }
+
+            if nb < 2 {
+                return Ok(());
+            }
+
+            let io1 = nodes[0];
+            let io2 = nodes[1];
+
+            let lpl_io1 = lend[(io1 - 1) as usize];
+            let ptr_io2 = find_node_pointer(lpl_io1, io2, &list, &lptr);
+            let are_neighbors = list[(ptr_io2 - 1) as usize].abs() == io2;
+
+            if !are_neighbors {
+                return Ok(());
+            }
+
+            let mut ier = 0i32;
+
+            unsafe {
+                delarc(
+                    &raw const n,
+                    &raw const io1,
+                    &raw const io2,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut lnew,
+                    &raw mut ier,
+                );
+            }
+
+            prop_assert_eq!(ier, 0, "delarc failed");
+
+            let lpl_io1_new = lend[(io1 - 1) as usize];
+            let ptr_io2_new = find_node_pointer(lpl_io1_new, io2, &list, &lptr);
+            let still_neighbors = list[(ptr_io2_new - 1) as usize].abs() == io2;
+            prop_assert!(!still_neighbors, "io1 and io2 should no longer be neighbors");
 
             check_triangulation(n, &list, &lend, &lptr);
         }

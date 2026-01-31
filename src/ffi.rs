@@ -287,6 +287,42 @@ unsafe extern "C" {
     );
 
     /**
+    Gets the next nearest node to a given node.
+
+    Given a Delaunay triangulation of `n` nodes on the unit sphere and an array `npts` containing the indexes of `l-1` nodes ordered by angular distance from `npts[1]`, this routine sets `npts[l]` to the index of the next node in the sequence -- the node, other than `npts[1], ..., npts[l - 1]`, that is closest to `npts[1]`. Thus, the ordered sequence of `k` closest nodes to `n1` (including `n1`) may be determined by `k - 1` calls to `getnp` with `npts[1] = n1` and `l = 2,3,..., k` for `k >= 2`.
+
+    The algorithm uses the property of a Delaunay triangulation that the `k`-th closest node to `n1` is a neighbor of one of the `k-1` closest nodes to `n1`.
+
+    # Arguments
+
+    * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The triangulation data
+      structure, created by `trmesh`.
+    * `l` - Input. The number of nodes in the sequence on output. `2 <= l <= n`.
+    * `npts[l]` - Input/output. On input, the indexes of the `l - 1` closest nodes to `npts[1]`
+      in the first `l - 1` locations. On output, updated with the index of the `l`-th closest
+      node to `npts[1]` in position `l` unless `ier = 1`.
+    * `df` - Output. The value of an increasing function (negative cosine) of the angular
+      distance between `npts[1]` and `npts[l]` unless `ier = 1`.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `l < 2`.
+    **/
+    #[link_name = "getnp_"]
+    pub fn getnp(
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        l: *const c_int,
+        npts: *mut c_int,
+        df: *mut c_double,
+        ier: *mut c_int,
+    );
+
+    /**
     Inserts `k` as a neighbor of `n1`.
 
     This subroutine inserts `k` as a neighbor of `n1` following `n2`,
@@ -797,7 +833,10 @@ mod test {
     use rstest::{fixture, rstest};
 
     use super::*;
-    use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI, TAU};
+    use std::{
+        collections::HashSet,
+        f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI, TAU},
+    };
 
     #[rstest]
     #[case(1, &[FRAC_PI_2], &[0.0], &[0.0], &[0.0], &[1.0])]
@@ -2310,6 +2349,46 @@ mod test {
             prop_assert_eq!(nearest, naive_nearest as i32 + 1);
             prop_assert!((naive_nearest_distance - al).abs() < 0.10, "Incorrect al value: {al}, expected: {naive_nearest_distance}");
 
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_getnp(n in 10..25i32, l in 3..8i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, mut lend, _) = create_triangulation(n, &x, &y, &z);
+            let mut npts = vec![0i32; l as usize];
+            npts[0] = n / 2;
+            let mut distances = vec![0.0f64; l as usize];
+            distances[0] = -1.0;
+
+            for i in 2..=l {
+                let current_l = i;
+                let mut df = 0.0f64;
+                let mut ier = 0i32;
+
+                unsafe {
+                    getnp(
+                        x.as_ptr(),
+                        y.as_ptr(),
+                        z.as_ptr(),
+                        list.as_ptr(),
+                        lptr.as_ptr(),
+                        lend.as_mut_ptr(),
+                        &raw const current_l,
+                        npts.as_mut_ptr(),
+                        &raw mut df,
+                        &raw mut ier,
+                    );
+                }
+
+                prop_assert_eq!(ier, 0, "getnp failed");
+                prop_assert!(df >= -1.0 && df <= 1.0, "df: {df}");
+                distances[(i - 1) as usize] = df;
+                prop_assert!(df >= distances[(i - 2) as usize], "distance should be increasing: df={df}, prev={}", distances[(i - 2) as usize]);
+            }
+
+            prop_assert_eq!(npts.into_iter().collect::<HashSet<_>>().len(), l as usize, "All {} nodes in sequence should be distinct", l);
         }
     }
 }

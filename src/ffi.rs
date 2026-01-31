@@ -177,7 +177,7 @@ unsafe extern "C" {
     * `n0` - Input. Index of a boundary node (in the range `1` to `kk - 1`). `n0` may be
       determined by `trfind`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
-    triangulation data structure created by `trmesh`. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
+      triangulation data structure created by `trmesh`. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
     */
     #[link_name = "covsph_"]
     pub fn covsph(
@@ -422,6 +422,47 @@ unsafe extern "C" {
         lptr: *mut c_int,
         lnew: *mut c_int,
     );
+
+    /**
+    Determines if a point is inside a polygonal region.
+
+    This function locates a point `p` relative to a polygonal region `r` on the surface of the unit sphere, returning `inside = true` if and only if `p` is contained in `r`. `r` is defined by a cyclically ordered sequence of vertices which form a positively-oriented simple closed curve. Adjacent vertices need not be distinct but the curve must not be self-intersecting. Also, while polygon edges are by definition restricted to a single hemisphere, `r` is not so restricted. Its interior is the region to the left as the vertices are traversed in order.
+
+    The algorithm consists of selecting a point `q` in `r` and then finding all points at which the great circle defined by `p` and `q` intersects the boundary of `r`. `p` lies inside `r` if and only if there is an even number of intersection points between `q` and `p`. `q` is taken to be a point immediately to the left of a directed boundary edge -- the first one that results in no consistency-check failures.
+
+    If `p` is close to the polygon boundary, the problem is ill-conditioned and the decision may be incorrect. Also, an incorrect decision may result from a poor choice of `q` (if, for example, a boundary edge lies on the great circle defined by `p` and `q`). A more reliable result could be obtained by a sequence of calls to `inside` with the vertices cyclically permuted before each call (to alter the choice of `q`).
+
+    # Arguments
+
+    * `p[3]` - Input. The coordinates of the point (unit vector) to be located.
+    * `lv` - Input. The length of the arrays `xv`, `yv`, and `zv`.
+    * `xv[lv]`, `yv[lv]`, `zv[lv]` - Input. The coordinates of unit vectors (points on the unit sphere).
+    * `nv` - Input. The number of vertices in the polygon. `3 <= nv <= lv`.
+    * `listv[nv]` - Input. The indexes (for `xv`, `yv`, and `zv`) of a cyclically-ordered (and
+      CCW-ordered) sequence of vertices that define `r`. The last vertex (indexed by `listv[nv]`) is followed by the first (indexed by `listv[1]`). `listv` entries must be in the range `1` to `lv`.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `lv` or `nv` is outside its valid range.
+      `2`, if a `listv` entry is outside its valid range.
+      `3`, if the polygon boundary was found to be self-intersecting. This error will not necessarily be detected.
+      `4`, if every choice of `q` (one for each boundary edge) led to failure of some internal consistency check. The most likely cause of this error is invalid input: `p = (0, 0, 0)`, a null or self-intersecting polygon, etc.
+
+    # Returns
+
+    True if and only if `p` lies inside `r` unless `ier /= 0`, in which case the value is not altered.
+
+    */
+    #[link_name = "inside_"]
+    pub fn inside(
+        p: *const c_double,
+        lv: *const c_int,
+        xv: *const c_double,
+        yv: *const c_double,
+        zv: *const c_double,
+        nv: *const c_int,
+        listv: *const c_int,
+        ier: *mut c_int,
+    ) -> bool;
 
     /**
     Adds an interior node to a triangulation.
@@ -2613,6 +2654,33 @@ mod test {
             prop_assert!(!still_neighbors, "io1 and io2 should no longer be neighbors");
 
             check_triangulation(n, &list, &lend, &lptr);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_inside(n in 6..25i32, p in unit_vector()) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+
+            let nv = 4i32;
+            let listv = vec![1i32, 2, 3, 4];
+
+            let mut ier = 0i32;
+
+            let _ = unsafe {
+                inside(
+                    p.as_ptr(),
+                    &raw const n,
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    &raw const nv,
+                    listv.as_ptr(),
+                    &raw mut ier,
+                )
+            };
+
+            prop_assert_eq!(ier, 0, "inside failed");
         }
     }
 }

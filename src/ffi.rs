@@ -410,6 +410,49 @@ unsafe extern "C" {
     ) -> c_int;
 
     /**
+    Returns the nearest node to a given point.
+
+    Given a point `p` on the surface of the unit sphere and a Delaunay triangulation created by `trmesh`, this function returns the index of the nearest triangulation node to `p`.
+
+    The algorithm consists of implicitly adding `p` to the triangulation, finding the nearest neighbor to `p`, and implicitly deleting `p` from the triangulation. Thus, it is based on the fact that, if `p` is a node in a Delaunay triangulation, the nearest node to `p` is a neighbor of `p`.
+
+    For large values of `n`, this procedure will be faster than the naive approach of computing the distance from `p` to every node.
+
+    Note that the number of candidates for `nearnd` (neighbors of `p`) is limited to `lmax` defined in the arguments below.
+
+    # Arguments
+
+    * `p[3]` - Input. The Cartesian coordinates of the point `p` to be located relative to the
+    * triangulation. It is assumed that `p[0]**2 + p[1]**2 + p[2]**2 = 1`, that is, that the
+      point lies on the unit sphere.
+    * `ist` - Input. The index of the node at which the search is to begin. The search time
+    * depends on the proximity of this node to `p`. If no good candidate is known, any value
+      between `1` and `n` will do.
+    * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    * `x[n]`, `y[n]`, `z[n]` - Input. The Cartesian coordinates of the nodes.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure defining
+      the triangulation, created by `trmesh`.
+    * `al` - Output. The arc length between `p` and node `nearnd`. Because both points are on
+      the unit sphere, this is also the angular separation in radians.
+
+    # Returns
+    The index of the nearest node to `p`. Will be `0` if `n < 3` or the triangulation data structure is invalid.
+    **/
+    #[link_name = "nearnd_"]
+    pub fn nearnd(
+        p: *const c_double,
+        ist: *const c_int,
+        n: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
+        al: *mut c_double,
+    ) -> c_int;
+
+    /**
     Optimizes the quadrilateral portion of a triangulation.
 
     Given a set of `na` triangulation arcs, this subroutine optimizes the portion of the
@@ -2229,6 +2272,44 @@ mod test {
         fn test_jrand(n in 100..150, mut ix in 1..30000, mut iy in 1..30000, mut iz in 1..30000) {
             let x = unsafe { jrand(&raw const n, &raw mut ix, &raw mut iy, &raw mut iz) };
             prop_assert!(x <= n);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_nearnd(n in 5..25i32, p in unit_vector()) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, lend, _) = create_triangulation(n, &x, &y, &z);
+
+            let mut al = 0.0;
+            let ist = 1;
+            let nearest = unsafe {
+                nearnd(
+                    p.as_ptr(),
+                    &raw const ist,
+                    &raw const n,
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    &raw mut al,
+                )
+            };
+
+            let mut naive_nearest = 0;
+            let mut naive_nearest_distance = f64::MAX;
+            for i in 0..x.len() {
+                let dist = ((p[0] - x[i]).powi(2) + (p[1] - y[i]).powi(2) + (p[2] - z[i]).powi(2)).sqrt();
+                if dist < naive_nearest_distance {
+                    naive_nearest = i;
+                }
+                naive_nearest_distance = naive_nearest_distance.min(dist);
+            }
+            prop_assert_eq!(nearest, naive_nearest as i32 + 1);
+            prop_assert!((naive_nearest_distance - al).abs() < 0.10, "Incorrect al value: {al}, expected: {naive_nearest_distance}");
+
         }
     }
 }

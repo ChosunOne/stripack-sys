@@ -114,7 +114,9 @@ unsafe extern "C" {
     );
 
     /**
-    Returns the boundary nodes of a triangulation. Given a triangulation of `n` nodes on the
+    Returns the boundary nodes of a triangulation.
+
+    Given a triangulation of `n` nodes on the
     unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
 
     # Arguments
@@ -140,6 +142,8 @@ unsafe extern "C" {
     );
 
     /**
+    Returns the circumcenter of a spherical triangle.
+
     Returns the circumcenter of a spherical triangle on the unit sphere: the point on the
     sphere surface that is equally distant from the three triangle vertices and lies in the same
     hemisphere, where distance is taken to be arc-length on the sphere surface.
@@ -446,6 +450,27 @@ unsafe extern "C" {
     ) -> c_int;
 
     /**
+    Returns the number of neighbors of a node.
+
+    This function returns the number of neighbors of a node `n0` in a triangulation created by `trmesh`.
+
+    The number of neighbors also gives the order of the Voronoi polygon containing the point. Thus, a neighbor count of `6` means the node is contained in a `6`-sided Voronoi region.
+
+    This function is identical to the similarly named function in TRIPACK.
+
+    # Arguments
+
+    * `lpl` - Input. Pointer to the last neighbor of `n0`.
+    * `lptr[6 * (n - 2)]` - Input. Pointers associated with `list`.
+
+    # Returns
+
+    The number of neighbors of `n0`.
+    **/
+    #[link_name = "nbcnt_"]
+    pub fn nbcnt(lpl: *const c_int, lptr: *const c_int) -> c_int;
+
+    /**
     Returns the nearest node to a given point.
 
     Given a point `p` on the surface of the unit sphere and a Delaunay triangulation created by `trmesh`, this function returns the index of the nearest triangulation node to `p`.
@@ -589,8 +614,9 @@ unsafe extern "C" {
     );
 
     /**
-    Decides whether to replace a diagonal arc by the other in a quadrilateral. The decision
-    will be to swap (`swptst = true`) if and only if `n4` lies above the plane (in the half-space
+    Decides whether to replace a diagonal arc by the other in a quadrilateral.
+
+    The decision will be to swap (`swptst = true`) if and only if `n4` lies above the plane (in the half-space
     not containing the origin) defined by (`n1`, `n2`, `n3`), or equivalently, if the projection of
     `n4` onto this plane is interior to the circumcircle of (`n1`, `n2`, `n3`). The decision will be
     for no swap if the quadrilateral is not strictly convex.
@@ -620,9 +646,9 @@ unsafe extern "C" {
 
     /**
     Transform spherical coordinates into Cartesian coordinates
-    on the unit sphere for input to `trmesh`. Storage for X and Y
-    may coincide with storage for `rlat` and `rlon` if the latter
-    need not be saved.
+    on the unit sphere for input to `trmesh`.
+
+    Storage for X and Y may coincide with storage for `rlat` and `rlon` if the latter need not be saved.
 
     # Arguments
     * `n` - Input. The number of nodes (points on the unit sphere) whose coordinates are to be transformed
@@ -2389,6 +2415,30 @@ mod test {
             }
 
             prop_assert_eq!(npts.into_iter().collect::<HashSet<_>>().len(), l as usize, "All {} nodes in sequence should be distinct", l);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_nbcnt(n in 6..30i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (_, lptr, lend, _) = create_triangulation(n, &x, &y, &z);
+
+            for node_idx in 1..=n {
+                let lpl = lend[(node_idx - 1) as usize];
+                let count = unsafe { nbcnt(&raw const lpl, lptr.as_ptr()) };
+                let mut manual_count = 0;
+                let mut current = lpl;
+                loop {
+                    manual_count += 1;
+                    current = lptr[(current - 1) as usize];
+                    if current == lpl {
+                        break;
+                    }
+                    prop_assert!(manual_count <= 6 * (n - 2), "infinite loop detected");
+                }
+                prop_assert_eq!(count, manual_count, "nbcnt shoudl match manula count for node {}", node_idx);
+            }
         }
     }
 }

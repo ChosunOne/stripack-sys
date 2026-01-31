@@ -186,6 +186,50 @@ unsafe extern "C" {
     );
 
     /**
+    Deletes a node from a triangulation.
+
+    This subroutine deletes node `k` (along with all arcs incident on node `k`) from a triangulation of `n` nodes on the unit sphere, and inserts arcs as necessary to produce a triangulation of the remaining `n - 1` nodes. If a Delaunay triangulation is input, a Delaunay triangulation will result, and thus, `delnod` reverses the effect of a call to `addnod`.
+
+    Note that the deletion may result in all remaining nodes being collinear. This situation is not flagged.
+
+    # Arguments
+
+    * `k` - Input. The index (for `x`, `y`, and `z`) of the node to be deleted. `1 <= k <= n`.
+    * `n` - Input/output. The number of nodes in the triangulation. `4 <= n`. Note that `n` will
+      be decremented following the deletion.
+    * `x[n]`, `y[n]`, `z[n]` - Input/output. The coordinates of the nodes in the triangulation.
+      On output, updated with elements `k + 1, ..., n + 1` shifted up one position, thus overwriting element `k`, unless `1 <= ier <= 4`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The data
+      structure defining the triangulation, created by `trmesh`. On output, updated to reflect the deletion unless `1 <= ier <= 4`. Note that the data structure may have been altered if `3 < ier`.
+    * `lwk` - Input/output. The number of columns reserved for `iwk`. `lkw` must be at least
+      `nnb-3`, where `nnb` is the number of neighbors of node `k`, including an extra pseudo-node if `k` is a boundary node. On output, the number of `iwk` columns required unless `ier = 1` or `ier = 3`.
+    * `iwk[2][lwk]` - Output. The indexes of the endpoints of the new arcs added unless `lwk = 0` or `1 <= ier <= 4`. (Arcs are associated with columns.)
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered
+      `1`, if `k` or `n` is outside its valid range or `lwk < 0` on input.
+      `2`, if more space is required in `iwk`. Refer to `lwk`.
+      `3`, if the triangulation data structure is invalid on input.
+      `4`, if `k` indexes an interior node with four or more neighbors, none of which can be swapped out due to collinearity, and `k` cannot therefore be deleted.
+      `5`, if an error flag (other than `ier = 1`) was returned by `optim`. An error message is written to the standard output unit in this case.
+      `6`, if error flag `1` was returned by `optim`. This is not necessarily an error, but the arcs may not be optimal.
+    **/
+    #[link_name = "delnod_"]
+    pub fn delnod(
+        k: *const c_int,
+        n: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+        lwk: *mut c_int,
+        iwk: *mut c_int,
+        ier: *mut c_int,
+    );
+
+    /**
     Swaps arcs to force two nodes to be adjacent.
 
     Given a triangulation of `n` nodes and a pair of nodal indexes `in1` and `in2`, this routine
@@ -2122,6 +2166,44 @@ mod test {
             }
 
             check_triangulation(kk, &list, &lend, &lptr);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_delnod(mut n in 5..25i32) {
+            let (mut x, mut y, mut z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+
+            let k = n / 2;
+            let starting_n = n;
+
+            let lwk_max = n;
+            let mut lwk = lwk_max;
+            let mut iwk = vec![0i32; 2 * lwk_max as usize];
+            let mut ier = 0i32;
+
+            unsafe {
+                delnod(
+                    &raw const k,
+                    &raw mut n,
+                    x.as_mut_ptr(),
+                    y.as_mut_ptr(),
+                    z.as_mut_ptr(),
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut lnew,
+                    &raw mut lwk,
+                    iwk.as_mut_ptr(),
+                    &raw mut ier,
+                );
+            }
+
+            prop_assert!(ier == 0 || ier == 6, "delnod failed");
+            prop_assert_eq!(n, starting_n - 1, "n should be decremented by 1");
+
+            check_triangulation(n, &list, &lend, &lptr);
         }
     }
 }

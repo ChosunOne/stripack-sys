@@ -342,6 +342,23 @@ unsafe extern "C" {
     );
 
     /**
+    Returns a random integer between `1` and `n`.
+
+    This function returns a uniformly distributed pseudorandom integer in the range `1` to `n`.
+
+    # Arguments
+
+    * `n` - Input. The maximum value to be returned.
+    * `ix`, `iy`, `iz` - Input/output. The Seeds initialized to values in the range `1` to
+      `30,000` before the first call to `jrand`, and not altered between subsequent calls (unless a sequence of random numbers is to be repeated by reinitializing the seeds).
+
+    # Returns
+    A random integer in the range `1` to `n`.
+    **/
+    #[link_name = "jrand_"]
+    pub fn jrand(n: *const c_int, ix: *mut c_int, iy: *mut c_int, iz: *mut c_int) -> c_int;
+
+    /**
     Determines whether a node is left of a plane through the origin.
 
     This function determines whether node `n0` is in the (closed) left hemisphere defined by the
@@ -2204,6 +2221,14 @@ mod test {
             prop_assert_eq!(n, starting_n - 1, "n should be decremented by 1");
 
             check_triangulation(n, &list, &lend, &lptr);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_jrand(n in 100..150, mut ix in 1..30000, mut iy in 1..30000, mut iz in 1..30000) {
+            let x = unsafe { jrand(&raw const n, &raw mut ix, &raw mut iy, &raw mut iz) };
+            prop_assert!(x <= n);
         }
     }
 }

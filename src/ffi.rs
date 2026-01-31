@@ -190,6 +190,64 @@ unsafe extern "C" {
     );
 
     /**
+    Returns triangle circumcenters and other information.
+
+    Given a Delaunay triangulation of nodes on the surface of the unit sphere, this subroutine returns the set of triangle circumcenters corresponding to Voronoi vertices, along with the circumradii and a list of triangle indexes `listc` stored in one-to-one correspondence with `list/lptr` entries.
+
+    A triangle circumcenter is the point (unit vector) lying at the same angular distance from the three vertices and contained in the same hemisphere as the vertices. (Note that the negative of a circumcenter is also equidistant from the vertices.) If the triangulation covers the surface, the Voronoi vertices are the circumenters of the triangles in the Delaunay triangulation. `lptr`, `lend`, and `lnew` are not altered in this case.
+
+    On the other hand, if the nodes are contained in a single hemisphere, the triangulation is implicitly extended to the entire surface by adding pseudo-arcs (of length greater than 180 degrees) between boundary nodes forming pseudo-triangles whose 'circumcenters' are included in the list. This extension to the triangulation actually consists of a triangulation of the set of boundary nodes in which the swap test is reversed (a non-empty circumcircle test). The negative circumcenters are stored as the pseudo-triangle 'circumcenters'. `listc`, `lptr`, `lend`, and `lnew` contain a data structure corresponding to the extended triangulation (Voronoi diagram), but `list` is not altered in this case. Thus, if it is necessary to retain the original (unextended) triangulation data structure, copies of `lptr` and `lnew` must be saved before calling this routine.
+
+    # Arguments
+
+    * `n` - Input. The number of nodes in the triangulation `3 <= n`. Note that, if `n = 3`,
+      there are only two Voronoi vertices separated by 180 degrees, and the Voronoi regions are not well defined.
+    * `ncol` - Input. The number of columns reserved for `ltri`. This must be at least `nb - 2`,
+      where `nb` is the number of boundary nodes.
+    * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes (unit vectors).
+    * `list[6 * (n - 2)]` - Input. The set of adjacency lists. Refer to `trmesh`.
+    * `lend[n]` - Input. The set of pointers to ends of adjacency lists. Refer to `trmesh`.
+    * `lptr[6 * (n - 2)]` - Input/output. Pointers associated with `list`. Refer to `trmesh`. On
+      output, pointers associated with `listc`. Updated for the addition of pseudo-triangles if the original triangulation contains boundary nodes (`0 < nb`).
+    * `lnew` - Input/output. On input, a pointer to the first empty location in `list` and `lptr` (list length plus one). On output, pointer to the first empty location in `listc` and `lptr` (list length plus one). `lnew` is not altered if `nb = 0`.
+    * `ltri[6][ncol]` - Output. Triangle list whose first `nb - 2` columns contain the indexes
+      of a clockwise-ordered sequence of vertices (first three rows) followed by the `ltri` column indexes of the triangles opposite the vertices (or 0 denoting the exterior region) in the last three rows. This array is not generally of any further use outside this routine.
+    * `listc[3 * nt]` - Output. Where `nt = 2 * n - 4` is the number of triangles in the
+      triangulation (after extending it to cover the entire surface if necessary). Contains the triangle indexes (indexes to `xc`, `yc`, `zc`, and `rc`) stored in 1-1 correspondence with `list`/`lptr` entries (or entries that would be stored in `list` for the extended triangulation): the index of triangle (`n1`, `n2`, `n3`) is stored in `listc[k]`, `listc[l]`, and `listc[m]`, where `list[k]`, `list[l]`, and `list[m]` are the indexes of `n2` as a neighbor of `n1`, `n3` as a neighbor of `n2`, and `n1` as a neighbor of `n3`. The Voronoi region associated with a node is defined by the CCW-ordered sequence of circumcenters in one-to-one correspondence with its adjacency list (in the extended triangulation).
+    * `nb` - Output. The number of boundary nodes unless `ier = 1`.
+    * `xc[2 * n - 4]`, `yc[2 * n - 4]`, `zc[2 * n - 4]`, the coordinates of the triangle
+      circumcenters (Voronoi vertices). `xc[i]**2 + yc[i]**2 + zc[i]**2 = 1`. The first `nb - 2`
+      entries correspond to pseudo-triangles if `0 < nb`.
+    * `rc[2 * n - 4]` - Output. The circumradii (the arc lengths or angles between the
+      circumcenters and associated triangle vertices) in 1-1 correspondence with circumcenters.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `n < 3`.
+      `2`, if `ncol < nb - 2`.
+      `3`, if a triangle is degenerate (has vertices lying on a common geodesic).
+    */
+    #[link_name = "crlist_"]
+    pub fn crlist(
+        n: *const c_int,
+        ncol: *const c_int,
+        x: *const c_double,
+        y: *const c_double,
+        z: *const c_double,
+        list: *const c_int,
+        lend: *const c_int,
+        lptr: *mut c_int,
+        lnew: *mut c_int,
+        ltri: *mut c_int,
+        listc: *mut c_int,
+        nb: *mut c_int,
+        xc: *mut c_double,
+        yc: *mut c_double,
+        zc: *mut c_double,
+        rc: *mut c_double,
+        ier: *mut c_int,
+    );
+
+    /**
     Deletes a boundary arc from a triangulation.
 
     This subroutine deletes a boundary arc from a triangulation. It may be used to remove a null triangle from the convex hull boundary. Note, however, that if the union of triangles is rendered nonconvex, subroutines `delnod`, `edge`, and `trfind` (and hence `addnod`) may fail. Also, function `nearnd` should not be called following an arc deletion.
@@ -756,6 +814,15 @@ unsafe extern "C" {
     ) -> bool;
 
     /**
+    Prints the current `YMDHMS` date as a time stamp.
+
+    Example:
+    31 May 2001    9:45:54.872 AM
+    */
+    #[link_name = "timestamp_"]
+    pub fn timestamp();
+
+    /**
     Transform spherical coordinates into Cartesian coordinates
     on the unit sphere for input to `trmesh`.
 
@@ -859,93 +926,93 @@ unsafe extern "C" {
     );
 
     /**
-    Creates a Delaunay triangulation on the unit sphere.
+     Creates a Delaunay triangulation on the unit sphere.
 
-    The Delaunay triangulation is defined as a set of (spherical) triangles with the following five
-    properties:
-    1. The triangle vertices are nodes.
-    2. No triangle contains a node other than its vertices.
-    3. The interiors of the triangles are pairwise disjoint.
-    4. The union of triangles is the convex hull of the set of nodes (the smallest convex set that
-       contains the nodes). If the nodes are not contained in a single hemisphere, their convex hull
-       is the entire sphere and there are no boundary nodes. Otherwise, there are at least three
-       boundary nodes.
-    5. The interior of the circumcircle of each triangle contains no node.
+     The Delaunay triangulation is defined as a set of (spherical) triangles with the following five
+     properties:
+     1. The triangle vertices are nodes.
+     2. No triangle contains a node other than its vertices.
+     3. The interiors of the triangles are pairwise disjoint.
+     4. The union of triangles is the convex hull of the set of nodes (the smallest convex set that
+        contains the nodes). If the nodes are not contained in a single hemisphere, their convex hull
+        is the entire sphere and there are no boundary nodes. Otherwise, there are at least three
+        boundary nodes.
+     5. The interior of the circumcircle of each triangle contains no node.
 
-    The first four properties define a triangulation, and the last property results in a
-    triangulation which is as close as possible to equiangular in a certain sense and which is
-    uniquely defined unless four or more nodes lie in a common plane. This property makes the
-    triangulation well-suited for solving closest-point problems and for triangle based
-    interpolation.
+     The first four properties define a triangulation, and the last property results in a
+     triangulation which is as close as possible to equiangular in a certain sense and which is
+     uniquely defined unless four or more nodes lie in a common plane. This property makes the
+     triangulation well-suited for solving closest-point problems and for triangle based
+     interpolation.
 
-    Provided the nodes are randomly ordered, the algorithm has expected time complexity O(N*log(N))
-    for most nodal distributions. Note, however, that the complexity may be as high as O(N**2) if,
-    for example, the nodes are ordered on increasing latitude.
+     Provided the nodes are randomly ordered, the algorithm has expected time complexity O(N*log(N))
+     for most nodal distributions. Note, however, that the complexity may be as high as O(N**2) if,
+     for example, the nodes are ordered on increasing latitude.
 
-    Spherical coordinates (latitude and longitude) may be converted to Cartesian coordinates by
-    `trans`.
+     Spherical coordinates (latitude and longitude) may be converted to Cartesian coordinates by
+     `trans`.
 
-    The following is a list of the software package modules which a user may wish to call directly:
-    `addnod` - Updates the triangulation by appending a new node.
-    `areas` - Returns the area of a spherical triangle
-    `bnodes` - Returns an array containing the index of the boundary nodes (if any) in
-    counterclockwise order. Counts of boundary nodes, triangles, and arcs are also returned.
-    `circum` - Returns the circumcenter of a spherical triangle.
-    `crlist` - Returns the set of triangle circumcenters (Voronoi vertices) and circumradii
-    associated with a triangulation.
-    `delarc` - Deletes a boundary arc from a triangulation.
-    `edge` - Forces an arbitrary pair of nodes to be connected by an arc in the triangulation.
-    `getnp` - Determines the ordered sequence of L closest nodes to a given node, along with the
-    associated distances.
-    `inside` - Locates a point relative to a polygon on the surface of the sphere.
-    `intrsc` - Returns the point of intersection between a pair of great circle arcs.
-    `jrand` - Generates a uniformly distributed pseudo-random integer.
-    `left` - Locates a point relative to a great circle
-    `nearnd` - Returns the index of the nearest node to an arbitrary point, along with its squared
-    distance.
-    `scoord` - Converts a point from Cartesian coordinates to spherical coordinates.
-    `store` - Forces a value to be stored in main memory so that the precision of floating point
-    numbers in memory locations rather than registers is computed
-    `trans` - Transforms spherical coordinates into Cartesian coordinates on the unit sphere for
-    input to `trmesh`
-    `trlist` - Converts the triangulation data structure to a triangle list more suitable for use in
-    a finite element code.
-    `trlprt` - Creates a Delaunay triangulation of a set of nodes.
-    `trplot` - Creates a level-2 Encapsulated Postscript (EPS) file containing a triangulation plot.
-    `trprnt` - Prints the triangulation data structure and, optionally, the nodal coordinates.
+     The following is a list of the software package modules which a user may wish to call directly:
+     `addnod` - Updates the triangulation by appending a new node.
+     `areas` - Returns the area of a spherical triangle
+     `bnodes` - Returns an array containing the index of the boundary nodes (if any) in
+     counterclockwise order. Counts of boundary nodes, triangles, and arcs are also returned.
+     `circum` - Returns the circumcenter of a spherical triangle.
+     `crlist` - Returns the set of triangle circumcenters (Voronoi vertices) and circumradii
+     associated with a triangulation.
+     `delarc` - Deletes a boundary arc from a triangulation.
+     `edge` - Forces an arbitrary pair of nodes to be connected by an arc in the triangulation.
+     `getnp` - Determines the ordered sequence of L closest nodes to a given node, along with the
+     associated distances.
+     `inside` - Locates a point relative to a polygon on the surface of the sphere.
+     `intrsc` - Returns the point of intersection between a pair of great circle arcs.
+     `jrand` - Generates a uniformly distributed pseudo-random integer.
+     `left` - Locates a point relative to a great circle
+     `nearnd` - Returns the index of the nearest node to an arbitrary point, along with its squared
+     distance.
+     `scoord` - Converts a point from Cartesian coordinates to spherical coordinates.
+     `store` - Forces a value to be stored in main memory so that the precision of floating point
+     numbers in memory locations rather than registers is computed
+     `trans` - Transforms spherical coordinates into Cartesian coordinates on the unit sphere for
+     input to `trmesh`
+     `trlist` - Converts the triangulation data structure to a triangle list more suitable for use in
+     a finite element code.
+     `trlprt` - Creates a Delaunay triangulation of a set of nodes.
+     `trplot` - Creates a level-2 Encapsulated Postscript (EPS) file containing a triangulation plot.
+     `trprnt` - Prints the triangulation data structure and, optionally, the nodal coordinates.
     `vrplot` - Createsa level-2 Encapsulated Postscript (EPS) file containing a Voronoi diagram
-    plot.
+     plot.
 
-    # Arguments
-    * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
-    * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of distinct nodes. `(x[k], y[k], z[k])` is referred to as node `k`, and `k` is referred to as a nodal index. It is required that `x[k]**2 + y[k]**2 + z[k]**2 = 1` for all `k`. The first three nodes must not be collinear (lie on a common great circle).
-    * `list` - Output. `6 * (n - 2)` nodal indexes which, along with `lptr`, `lend`, and `lnew`
-      define the triangulation as a set of `n` adjacency lists; counterclockwise-ordered sequences of
-      neighboring nodes such that the first and last neighbors of a boundary node are boundary nodes
-      (the first neighbor of an interior node is arbitrary). In order to distinguish between interior
-      and boundary nodes, the last neighbor of each boundary node is represented by the negative of
-      its index.
+     # Arguments
+     * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+     * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of distinct nodes. `(x[k], y[k], z[k])` is referred to as node `k`, and `k` is referred to as a nodal index. It is required that `x[k]**2 + y[k]**2 + z[k]**2 = 1` for all `k`. The first three nodes must not be collinear (lie on a common great circle).
+     * `list` - Output. `6 * (n - 2)` nodal indexes which, along with `lptr`, `lend`, and `lnew`
+       define the triangulation as a set of `n` adjacency lists; counterclockwise-ordered sequences of
+       neighboring nodes such that the first and last neighbors of a boundary node are boundary nodes
+       (the first neighbor of an interior node is arbitrary). In order to distinguish between interior
+       and boundary nodes, the last neighbor of each boundary node is represented by the negative of
+       its index.
     * `lptr` - Output. Set of pointers (`list` indexes) in one-to-one correspondence with the
-      elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
-      counterclockwise order (the first neighbor follows the last neighbor).
-    * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
-      node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
-    * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
-      one). `list`, `lptr`, `lend` and `lnew` are not altered if `ier < 0`, and are incomplete if `0 <
-    ier`.
-    * `near` - Workspace. An array of `n` integers used to efficiently determine the nearest
-      triangulation node to each unprocessed node for use by `addnod`.
-    * `next` - Workspace. An array of `n` integers used to efficiently determine the nearest triangulation node
-      to each unprocessed node for use by `addnod`.
-    * `dist` - Workspace. An array of `n` floats used to efficiently determine the neareast
-      triangulation node to each unprocessed node for use by `addnod`.
-    * `ier` - Output. An integer error indicator:
-      0, if no errors were ecountered.
-      -1, if `n < 3` on input.
-      -2, if the first three nodes are collinear.
-      L, if nodes L and M coincide for some L < M. The data structure represents a triangulation
-      of nodes 1 to M-1 in this case.
-    */
+       elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
+       counterclockwise order (the first neighbor follows the last neighbor).
+     * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
+       node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
+     * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
+       one). `list`, `lptr`, `lend` and `lnew` are not altered if `ier < 0`, and are incomplete if `0 <
+     ier`.
+     * `near` - Workspace. An array of `n` integers used to efficiently determine the nearest
+       triangulation node to each unprocessed node for use by `addnod`.
+     * `next` - Workspace. An array of `n` integers used to efficiently determine the nearest triangulation node
+       to each unprocessed node for use by `addnod`.
+     * `dist` - Workspace. An array of `n` floats used to efficiently determine the neareast
+       triangulation node to each unprocessed node for use by `addnod`.
+     * `ier` - Output. An integer error indicator:
+       0, if no errors were ecountered.
+       -1, if `n < 3` on input.
+       -2, if the first three nodes are collinear.
+       L, if nodes L and M coincide for some L < M. The data structure represents a triangulation
+       of nodes 1 to M-1 in this case.
+     */
     #[link_name = "trmesh_"]
     pub fn trmesh(
         n: *const c_int,
@@ -2681,6 +2748,90 @@ mod test {
             };
 
             prop_assert_eq!(ier, 0, "inside failed");
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_crlist(n in 5i32..25i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, lend, lnew) = create_triangulation(n, &x, &y, &z);
+
+            if lnew <= 0 {
+                return Ok(());
+            }
+
+            let nrow = 6i32;
+            let max_triangles = (2 * n - 4) as usize;
+            let mut ltri = vec![0i32; (nrow as usize) * max_triangles];
+
+
+            let ncol = n;
+            let max_centers = (2 * n - 4) as usize;
+            let mut listc = vec![0i32; 3 * max_triangles];
+            let mut nb = 0i32;
+            let mut xc = vec![0.0f64; max_centers];
+            let mut yc = vec![0.0f64; max_centers];
+            let mut zc = vec![0.0f64; max_centers];
+            let mut rc = vec![0.0f64; max_centers];
+            let mut ier_crlist = 0i32;
+            let mut lptr_copy = lptr.clone();
+            let mut lnew_copy = lnew;
+
+            unsafe {
+                crlist(
+                    &raw const n,
+                    &raw const ncol,
+                    x.as_ptr(),
+                    y.as_ptr(),
+                    z.as_ptr(),
+                    list.as_ptr(),
+                    lend.as_ptr(),
+                    lptr_copy.as_mut_ptr(),
+                    &raw mut lnew_copy,
+                    ltri.as_mut_ptr(),
+                    listc.as_mut_ptr(),
+                    &raw mut nb,
+                    xc.as_mut_ptr(),
+                    yc.as_mut_ptr(),
+                    zc.as_mut_ptr(),
+                    rc.as_mut_ptr(),
+                    &raw mut ier_crlist,
+                );
+            };
+
+            if nb > 0 {
+                return Ok(());
+            }
+
+            prop_assert_eq!(ier_crlist, 0, "crlist failed");
+
+            let nt = 2 * n - 4;
+            for i in 0..nt as usize {
+                let norm_sq = xc[i] * xc[i] + yc[i] * yc[i] + zc[i] * zc[i];
+                prop_assert!((norm_sq - 1.0).abs() < 1e-10, "circumcenter {i} should be a unit vector, norm_sq={norm_sq}");
+
+                let base = i * 6;
+                let v1 = (ltri[base] - 1) as usize;
+                let v2 = (ltri[base + 1] - 1) as usize;
+                let v3 = (ltri[base + 2] - 1) as usize;
+
+                if v1 >= n as usize || v2 >= n as usize || v3 >= n as usize {
+                    continue;
+                }
+
+                let c = [xc[i], yc[i], zc[i]];
+                let p1 = [x[v1], y[v1], z[v1]];
+                let p2 = [x[v2], y[v2], z[v2]];
+                let p3 = [x[v3], y[v3], z[v3]];
+
+                let d1 = spherical_distance(&c, &p1);
+                let d2 = spherical_distance(&c, &p2);
+                let d3 = spherical_distance(&c, &p3);
+
+                prop_assert!((d1 - d2).abs() < 1e-9 && (d2 - d3).abs() < 1e-9, "circumcenter {i} not equidistant: d1={d1}, d2={d2}, d3={d3}, rc={}", rc[i]);
+                prop_assert!((rc[i] - d1).abs() < 1e-9, "circumradius mismatch for triangle {i}: rc={}, actual distance={d1}", rc[i]);
+            }
         }
     }
 }

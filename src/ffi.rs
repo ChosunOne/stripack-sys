@@ -101,7 +101,7 @@ unsafe extern "C" {
       from node `kk`. `i1` and `i2` may be determined by `trfind`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
       triangulation data structure created by `trmesh`. Nodes `i1` and `i2` must be included in the triangulation. On output, the data structure is updated with the addition of node `kk`. Node `kk` is connected to `i1`, `i2`, and all boundary nodes in between.
-     **/
+     */
     #[link_name = "bdyadd_"]
     pub fn bdyadd(
         kk: *const c_int,
@@ -178,7 +178,7 @@ unsafe extern "C" {
       determined by `trfind`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
     triangulation data structure created by `trmesh`. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
-    **/
+    */
     #[link_name = "covsph_"]
     pub fn covsph(
         kk: *const c_int,
@@ -187,6 +187,43 @@ unsafe extern "C" {
         lptr: *mut c_int,
         lend: *mut c_int,
         lnew: *mut c_int,
+    );
+
+    /**
+    Deletes a neighbor from the adjacency list.
+
+    This subroutine deletes a neighbor `nb` from the adjacency list of node `n0` (but `n0` is not deleted from the adjacency list of `nb`) and, if `nb` is a boundary node, makes `n0` a boundary node.
+
+    For pointer (`list` index) `lph` to `nb` as a neighbor of `n0`, the empty `list`, `lptr` location `lph` is filled in with the values at `lnew - 1`, pointer `lnew - 1` (in `lptr` and possibly in `lend`) is changed to `lph`, and `lnew` is decremented.
+
+    This requires a search of `lend` and `lptr` entailing an expected operation count of O(n).
+
+    This routine is identical to the similarly named routine in TRIPACK.
+
+    # Arguments
+
+    * `n0`, `nb` - Input. Indexes, in the range `1` to `n`, of a pair of nodes such that `nb` is
+      a neighbor of `n0`. (`n0` need not be a neighbor of `nb`.)
+    * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/Output. The data structure defining
+      the triangulation. On output, updated with the removal of `nb` from the adjacency list of
+      `n0` unless `lph < 0`.
+    * `lph` - Input/output. List pointer to the hole (`nb` as a neighbor of `n0`) filled in by
+      the values at `lnew - 1` or error indicator:
+      `> 0`, if no errors were encountered.
+      `-1`, if `n0`, `nb`, or `n` is outside its valid range.
+      `-2`, if `nb` is not a neighbor of `n0`.
+    */
+    #[link_name = "delnb_"]
+    pub fn delnb(
+        n0: *const c_int,
+        nb: *const c_int,
+        n: *const c_int,
+        list: *mut c_int,
+        lptr: *mut c_int,
+        lend: *mut c_int,
+        lnew: *mut c_int,
+        lph: *mut c_int,
     );
 
     /**
@@ -216,7 +253,7 @@ unsafe extern "C" {
       `4`, if `k` indexes an interior node with four or more neighbors, none of which can be swapped out due to collinearity, and `k` cannot therefore be deleted.
       `5`, if an error flag (other than `ier = 1`) was returned by `optim`. An error message is written to the standard output unit in this case.
       `6`, if error flag `1` was returned by `optim`. This is not necessarily an error, but the arcs may not be optimal.
-    **/
+    */
     #[link_name = "delnod_"]
     pub fn delnod(
         k: *const c_int,
@@ -311,7 +348,7 @@ unsafe extern "C" {
     * `ier` - Output. Error indicator:
       `0`, if no errors were encountered.
       `1`, if `l < 2`.
-    **/
+    */
     #[link_name = "getnp_"]
     pub fn getnp(
         x: *const c_double,
@@ -343,7 +380,7 @@ unsafe extern "C" {
     * `lp` - Input. The `list` pointer of `n2` as a neighbor of `n1`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lnew` - Input/Output.
       The data structure defining the triangulation, created by `trmesh`. On output, updated with the addition of node `k`
-    **/
+    */
     #[link_name = "insert_"]
     pub fn insert(
         k: *const c_int,
@@ -368,7 +405,7 @@ unsafe extern "C" {
       triangle which contains node `kk`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The data structure
       defining the triangulation, created by `trmesh`. Triangle (`i1`, `i2`, `i3`) must be included in the triangulation. On output, updated with the addition of node `kk`. `kk` will be connected to nodes `i1`, `i2`, and `i3`.
-    **/
+    */
     #[link_name = "intadd_"]
     pub fn intadd(
         kk: *const c_int,
@@ -394,7 +431,7 @@ unsafe extern "C" {
 
     # Returns
     A random integer in the range `1` to `n`.
-    **/
+    */
     #[link_name = "jrand_"]
     pub fn jrand(n: *const c_int, ix: *mut c_int, iy: *mut c_int, iz: *mut c_int) -> c_int;
 
@@ -466,7 +503,7 @@ unsafe extern "C" {
     # Returns
 
     The number of neighbors of `n0`.
-    **/
+    */
     #[link_name = "nbcnt_"]
     pub fn nbcnt(lpl: *const c_int, lptr: *const c_int) -> c_int;
 
@@ -498,7 +535,7 @@ unsafe extern "C" {
 
     # Returns
     The index of the nearest node to `p`. Will be `0` if `n < 3` or the triangulation data structure is invalid.
-    **/
+    */
     #[link_name = "nearnd_"]
     pub fn nearnd(
         p: *const c_double,
@@ -1720,117 +1757,117 @@ mod test {
     }
 
     proptest! {
-        #[test]
-        fn test_swap(n in 6..20i32) {
-            let (x, y, z) = fibonacci_sphere(n as usize);
-            let (mut list, mut lptr, mut lend, _) = create_triangulation(n, &x, &y, &z);
+         #[test]
+         fn test_swap(n in 6..20i32) {
+             let (x, y, z) = fibonacci_sphere(n as usize);
+             let (mut list, mut lptr, mut lend, _) = create_triangulation(n, &x, &y, &z);
 
-            let nrow = 6i32;
-            let max_triangles = (2 * n - 4) as usize;
-            let mut ltri = vec![0i32; (nrow as usize) * max_triangles];
-            let mut nt = 0i32;
-            let mut ier = 0i32;
+             let nrow = 6i32;
+             let max_triangles = (2 * n - 4) as usize;
+             let mut ltri = vec![0i32; (nrow as usize) * max_triangles];
+             let mut nt = 0i32;
+    let mut ier = 0i32;
 
-            unsafe {
-                trlist(
-                    &raw const n,
-                    list.as_ptr(),
-                    lptr.as_ptr(),
-                    lend.as_ptr(),
-                    &raw const nrow,
-                    &raw mut nt,
-                    ltri.as_mut_ptr(),
-                    &raw mut ier,
-                );
-            }
+             unsafe {
+                 trlist(
+                     &raw const n,
+                     list.as_ptr(),
+                     lptr.as_ptr(),
+                     lend.as_ptr(),
+                     &raw const nrow,
+                     &raw mut nt,
+                     ltri.as_mut_ptr(),
+                     &raw mut ier,
+                 );
+             }
 
-            prop_assert_eq!(ier, 0, "trlist failed");
-            prop_assert!(nt >= 2, "Need at least 2 triangles for a swap");
+             prop_assert_eq!(ier, 0, "trlist failed");
+             prop_assert!(nt >= 2, "Need at least 2 triangles for a swap");
 
 
-            'outer: for t1 in 0..(nt as usize) {
-                for t2 in (t1 + 1)..(nt as usize) {
-                    let v1_0 = ltri[t1 * 6 + 0];
-                    let v1_1 = ltri[t1 * 6 + 1];
-                    let v1_2 = ltri[t1 * 6 + 2];
+             'outer: for t1 in 0..(nt as usize) {
+                 for t2 in (t1 + 1)..(nt as usize) {
+                     let v1_0 = ltri[t1 * 6 + 0];
+                     let v1_1 = ltri[t1 * 6 + 1];
+                     let v1_2 = ltri[t1 * 6 + 2];
 
-                    let v2_0 = ltri[t2 * 6 + 0];
-                    let v2_1 = ltri[t2 * 6 + 1];
-                    let v2_2 = ltri[t2 * 6 + 2];
+                     let v2_0 = ltri[t2 * 6 + 0];
+                     let v2_1 = ltri[t2 * 6 + 1];
+                     let v2_2 = ltri[t2 * 6 + 2];
 
-                    let verts1 = [v1_0, v1_1, v1_2];
-                    let verts2 = [v2_0, v2_1, v2_2];
+                     let verts1 = [v1_0, v1_1, v1_2];
+                     let verts2 = [v2_0, v2_1, v2_2];
 
-                    let mut shared = vec![];
-                    let mut unique1 = None;
-                    let mut unique2 = None;
+                     let mut shared = vec![];
+                     let mut unique1 = None;
+                     let mut unique2 = None;
 
-                    for &v in &verts1 {
-                        if verts2.contains(&v) {
-                            shared.push(v);
-                        } else {
-                            unique1 = Some(v);
-                        }
-                    }
+                     for &v in &verts1 {
+                         if verts2.contains(&v) {
+                             shared.push(v);
+                         } else {
+                             unique1 = Some(v);
+                         }
+                     }
 
-                    for &v in &verts2 {
-                        if !verts1.contains(&v) {
-                            unique2 = Some(v);
-                        }
-                    }
+                     for &v in &verts2 {
+                         if !verts1.contains(&v) {
+                             unique2 = Some(v);
+                         }
+                     }
 
-                    if !(shared.len() == 2 && unique1.is_some() && unique2.is_some()) {
-                        continue;
-                    }
+                     if !(shared.len() == 2 && unique1.is_some() && unique2.is_some()) {
+                         continue;
+                     }
 
-                    let io1 = shared[0];
-                    let io2 = shared[1];
-                    let in1 = unique1.unwrap();
-                    let in2 = unique2.unwrap();
+                     let io1 = shared[0];
+                     let io2 = shared[1];
+                     let in1 = unique1.unwrap();
+                     let in2 = unique2.unwrap();
 
-                    let lpl_io1 = lend[(io1 - 1) as usize];
-                    let ptr_io2 = find_node_pointer(lpl_io1, io2, &list, &lptr);
+                     let lpl_io1 = lend[(io1 - 1) as usize];
+                     let ptr_io2 = find_node_pointer(lpl_io1, io2, &list, &lptr);
 
-                    if !(ptr_io2 > 0 && list[(ptr_io2 - 1) as usize].abs() == io2) {
-                        continue;
-                    }
+                     if !(ptr_io2 > 0 && list[(ptr_io2 - 1) as usize].abs() == io2) {
+                         continue;
+                     }
 
-                    let lpl_in1 = lend[(in1 - 1) as usize];
-                    let ptr_in2_check = find_node_pointer(lpl_in1, in2, &list, &lptr);
-                    if list[(ptr_in2_check - 1) as usize].abs() == in2 {
-                        continue;
-                    }
+                     let lpl_in1 = lend[(in1 - 1) as usize];
+                     let ptr_in2_check = find_node_pointer(lpl_in1, in2, &list, &lptr);
+                     if list[(ptr_in2_check - 1) as usize].abs() == in2 {
+                         continue;
+                     }
 
-                    if !should_swap(in1, in2, io1, io2, &x, &y, &z) {
-                        continue;
-                    }
+                     if !should_swap(in1, in2, io1, io2, &x, &y, &z) {
+                         continue;
+                     }
 
-                    let mut lp21 = 0i32;
-                    unsafe {
-                        swap(
-                            &raw const in1,
-                            &raw const in2,
-                            &raw const io1,
-                            &raw const io2,
-                            list.as_mut_ptr(),
-                            lptr.as_mut_ptr(),
-                            lend.as_mut_ptr(),
-                            &raw mut lp21,
-                        );
-                    };
+                     let mut lp21 = 0i32;
+                     unsafe {
+                         swap(
+                             &raw const in1,
+                             &raw const in2,
+                             &raw const io1,
+                             &raw const io2,
+                             list.as_mut_ptr(),
+                             lptr.as_mut_ptr(),
+                             lend.as_mut_ptr(),
+                             &raw mut lp21,
+                         );
+                     };
 
-                    prop_assert!(lp21 > 0, "Swap should succeed with lp21 > 0");
+                     prop_assert!(lp21 > 0, "Swap should succeed with lp21 > 0");
 
-                    let lpl_in2 = lend[(in2 - 1) as usize];
-                    let ptr_in1 = find_node_pointer(lpl_in2, in1, &list, &lptr);
-                    prop_assert!(ptr_in1 > 0, "IN1 should be neighbor of IN2 after swap");
-                    prop_assert_eq!(list[(ptr_in1 - 1) as usize].abs(), in1);
+                     let lpl_in2 = lend[(in2 - 1) as usize];
+                     let ptr_in1 = find_node_pointer(lpl_in2, in1, &list, &lptr);
+                     prop_assert!(ptr_in1 > 0, "IN1 should be neighbor of IN2 after swap");
+                     prop_assert_eq!(list[(ptr_in1 - 1) as usize].abs(), in1);
 
-                    break 'outer;
-                }
-            }
-        }
-    }
+                     break 'outer;
+                 }
+             }
+         }
+     }
 
     proptest! {
         #[test]
@@ -2439,6 +2476,45 @@ mod test {
                 }
                 prop_assert_eq!(count, manual_count, "nbcnt shoudl match manula count for node {}", node_idx);
             }
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_delnb(n in 6..25i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+
+            let n0 = n / 2;
+            let lpl_n0 = lend[(n0 - 1) as usize];
+
+            let first_neighbor_pos = lptr[(lpl_n0 - 1) as usize];
+            let nb = list[(first_neighbor_pos - 1) as usize];
+
+            if nb < 1 || nb > n {
+                return Ok(());
+            }
+
+            let lnew_before = lnew;
+            let mut lph = 0i32;
+
+            unsafe {
+                delnb(
+                    &raw const n0,
+                    &raw const nb,
+                    &raw const n,
+                    list.as_mut_ptr(),
+                    lptr.as_mut_ptr(),
+                    lend.as_mut_ptr(),
+                    &raw mut lnew,
+                    &raw mut lph,
+                );
+            }
+
+            prop_assert!(lph > 0, "delnb failed");
+            prop_assert!(lnew <= lnew_before, "lnew should decrease or stay the same, got {lnew} expected <= {lnew_before}");
+
+            check_triangulation(n, &list, &lend, &lptr);
         }
     }
 }

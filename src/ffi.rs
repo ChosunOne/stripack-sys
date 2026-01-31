@@ -551,6 +551,33 @@ unsafe extern "C" {
     );
 
     /**
+    Finds the intersection of two great circles.
+
+    Given a great circle `c` and points `p1` and `p2` defining an arc `a` on the surface of the unit sphere, where `a` is the shorter of the two portions of the great circle `c12` associated with `p1` and `p2`, this subroutine returns the point of intersection `p` between `c` and `c12` that is closer to `a`. Thus, if `p1` and `p2` lie in opposite hemispheres defined by `c`, `p` is the point of intersection of `c` with `a`.
+
+    # Arguments
+
+    * `p1[3]`, `p2[3]` - Input. The coordinates of unit vectors.
+    * `cn[3]` - Input. The coordinates of a nonzero vector which defines `c` as the intersection
+      of the plane whose normal is `cn` with the unit sphere. Thus, if `c` is to be the great
+      circle defined by `p` and `q`, `cn` should be `p X q`.
+    * `p` - Output. Point of intersection defined above unless `ier` is not 0, in which case `p`
+      is not altered.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `<cn, p1> = <cn, p2>`. This occurs if and only if `p1 = p2` or `cn = 0` or there are two intersection points at the same distance from `a`.
+      `2` if `p2 = -p1` and the definition of `a` is therefore ambiguous.
+    */
+    #[link_name = "intrsc_"]
+    pub fn intrsc(
+        p1: *const c_double,
+        p2: *const c_double,
+        cn: *const c_double,
+        p: *mut c_double,
+        ier: *mut c_int,
+    );
+
+    /**
     Returns a random integer between `1` and `n`.
 
     This function returns a uniformly distributed pseudorandom integer in the range `1` to `n`.
@@ -2832,6 +2859,64 @@ mod test {
                 prop_assert!((d1 - d2).abs() < 1e-9 && (d2 - d3).abs() < 1e-9, "circumcenter {i} not equidistant: d1={d1}, d2={d2}, d3={d3}, rc={}", rc[i]);
                 prop_assert!((rc[i] - d1).abs() < 1e-9, "circumradius mismatch for triangle {i}: rc={}, actual distance={d1}", rc[i]);
             }
+        }
+    }
+
+    fn cross_product(v1: &[f64; 3], v2: &[f64; 3]) -> [f64; 3] {
+        [
+            v1[1] * v2[2] - v1[2] * v2[1],
+            v1[2] * v2[0] - v1[0] * v2[2],
+            v1[0] * v2[1] - v1[1] * v2[0],
+        ]
+    }
+
+    fn norm(v: &[f64; 3]) -> f64 {
+        (v[0].powi(2) + v[1].powi(2) + v[2].powi(2)).sqrt()
+    }
+
+    fn dot(v1: &[f64; 3], v2: &[f64; 3]) -> f64 {
+        v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+    }
+
+    proptest! {
+        #[test]
+        fn test_intrsc(p1 in unit_vector(), p2 in unit_vector(), q in unit_vector()) {
+            let c12 = cross_product(&p1, &p2);
+            let norm_c12 = norm(&c12);
+            if norm_c12 < f64::EPSILON {
+                return Ok(());
+            }
+            let c12 = normalize(&c12);
+
+            let cn = cross_product(&p1, &q);
+            let norm_cn = norm(&cn);
+            if norm_cn < f64::EPSILON {
+                return Ok(());
+            }
+
+            let mut p = [0f64; 3];
+            let mut ier = 0i32;
+
+            unsafe {
+                intrsc(
+                    p1.as_ptr(),
+                    p2.as_ptr(),
+                    cn.as_ptr(),
+                    p.as_mut_ptr(),
+                    &raw mut ier,
+                );
+            };
+
+            prop_assert_eq!(ier, 0, "intrsc failed");
+
+            let norm_p = norm(&p);
+            prop_assert!((norm_p - 1.0).abs() < 1e-10, "intersection point should be on unit sphere, norm={norm_p}");
+
+            let dot_p_cn = dot(&p, &cn);
+            prop_assert!(dot_p_cn.abs() < 1e-10, "intersection should be perpendicular to cn, dot={dot_p_cn}");
+
+            let dot_p_c12 = dot(&p, &c12);
+            prop_assert!(dot_p_c12.abs() < 1e-10, "intersection should be perpendicular to c12 normal, dot={dot_p_c12}");
         }
     }
 }

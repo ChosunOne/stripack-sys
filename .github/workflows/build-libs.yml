@@ -1,0 +1,112 @@
+name: Build Pre-compiled Libraries
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2014_x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+      - name: Build library
+        run: |
+          gfortran -c -O3 -fPIC fortran/stripack.f90 -o stripack.o
+          mkdir -p lib/x86_64-unknown-linux-gnu
+          ar rcs lib/x86_64-unknown-linux-gnu/libstripack.a stripack.o
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: lib/x86_64-unknown-linux-gnu/
+  build-linux-aarch64:
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2014_aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+      - name: Build library
+        run: |
+          gfortran -c -O3 -fPIC fortran/stripack.f90 -o stripack.o
+          mkdir -p lib/aarch64-unknown-linux-gnu
+          ar rcs lib/aarch64-unknown-linux-gnu/libstripack.a stripack.o
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64
+          path: lib/aarch64-unknown-linux-gnu/
+  build-macos-aarch64:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+      - name: Build library
+        run: |
+          gfortran -c -O3 -fPIC fortran/stripack.f90 -o stripack.o
+          mkdir -p lib/aarch64-apple-darwin
+          ar rcs lib/aarch64-apple-darwin/libstripack.a stripack.o
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-aarch64
+          path: lib/aarch64-apple-darwin/
+  build-windows-gnu:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+      - name: Build library
+        shell: msys2 {0}
+        run: |
+          x86_64-w64-mingw32-gfortran -c -O3 fortran/stripack.f90 -o stripack.o
+          mkdir -p lib/x86_64-pc-windows-gnu
+          x86_64-w64-mingw32-ar rcs lib/x86_64-pc-windows-gnu/libstripack.a stripack.o
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-gnu
+          path: lib/x86_64-pc-windows-gnu/
+  commit-libs:
+    needs: [build-linux-x86_64, build-linux-aarch64, build-macos-aarch64, build-windows-gnu]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Organize libraries
+        run: |
+          mkdir -p lib
+          cp -r artifacts/linux-x86_64/* lib/ 2>/dev/null || true
+          cp -r artifacts/linux-aarch64/* lib/ 2>/dev/null || true
+          cp -r artifacts/macos-aarch64/* lib/ 2>/dev/null || true
+          cp -r artifacts/windows-gnu/* lib/ 2>/dev/null || true
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lib/
+          git commit -m "Update pre-built libraries for ${{ github.ref_name }}" || exit 0
+          git push

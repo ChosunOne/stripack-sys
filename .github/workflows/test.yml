@@ -34,10 +34,6 @@ jobs:
             os: ubuntu-latest
             fortran: gfortran
 
-          - name: macOS Intel
-            os: macos-12
-            fortran: gcc
-
           - name: macOS Apple Silicon
             os: macos-14
             fortran: gcc
@@ -62,7 +58,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           install: >-
-            mingw-w64-x68_64-gcc-fortran
+            mingw-w64-x86_64-gcc-fortran
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

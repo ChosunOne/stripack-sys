@@ -53,6 +53,14 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: brew install gcc
 
+      - name: Debug gfortran location (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          which gfortran
+          ls -la /opt/homebrew/lib/ | grep gfortran || echo "not in /opt/homebrew/lib"
+          ls -la /opt/homebrew/lib/gcc/*/ || echo "checking gcc subdirs"
+          brew list gcc | grep gfortran || echo "checking brew list"
+
       - name: Setup Fortran (Wndows)
         if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2

@@ -14,7 +14,7 @@ This crate provides low-level bindings to STRIPACK.
 
 ## Building
 
-Pre-compiled binaries for the linked Fortran library are provided for the following platforms:
+Pre-compiled binaries for the linked Fortran library are provided for the following platforms:  
     * `x86_64-unknown-linux-gnu`
     * `aarch64-unknown-linux-gnu`
     * `aarch64-apple-darwin`

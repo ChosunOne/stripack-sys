@@ -46,48 +46,48 @@ jobs:
             os: windows-latest
             fortran: mingw-w64
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Setup Fortran (Linux)
-          if: matrix.os == 'ubuntu-latest'
-          run: sudo apt-get update && sudo apt-get install -y gfortran
+      - name: Setup Fortran (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y gfortran
 
-        - name: Setup Fortran (macOS)
-          if: startsWith(matrix.os, 'macos')
-          run: brew install gcc
+      - name: Setup Fortran (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: brew install gcc
 
-        - name: Setup Fortran (Wndows)
-          if: matrix.os == 'windows-latest'
-          uses: msys2/setup-msys2@v2
-          with:
-            install: >-
-              mingw-w64-x68_64-gcc-fortran
+      - name: Setup Fortran (Wndows)
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          install: >-
+            mingw-w64-x68_64-gcc-fortran
 
-        - name: Install Rust
-          uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-        - name: Install cargo-nextest
-          uses: taiki-e/install-action@cargo-nextest
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
 
-        - name: Install cargo-llvm-cov
-          uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
 
-        - name: Build
-          run: cargo build --verbose
+      - name: Build
+        run: cargo build --verbose
 
-        - name: Test
-          run: cargo nextest run
+      - name: Test
+        run: cargo nextest run
 
-        - name: Generate coverage
-          run: cargo llvm-cov --lcov --output-path lcov.info
+      - name: Generate coverage
+        run: cargo llvm-cov --lcov --output-path lcov.info
 
-        - name: Upload coverage
-          uses: codecov/codecov-action@v3
-          with:
-            files: lcov.info
-            fail_ci_if_error: true
-            verbose: true
-          env:
-            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 

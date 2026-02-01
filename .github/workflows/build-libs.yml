@@ -1,8 +1,12 @@
 name: Build Pre-compiled Libraries
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for building'
+        required: false
+        default: 'Manual library build'
+
 jobs:
   build-linux-x86_64:
     runs-on: ubuntu-latest

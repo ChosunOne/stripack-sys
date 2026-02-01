@@ -24,7 +24,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64
+          name: x86_64-unknown-linux-gnu
           path: lib/x86_64-unknown-linux-gnu/
   build-linux-aarch64:
     runs-on: ubuntu-24.04-arm
@@ -42,7 +42,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-aarch64
+          name: aarch-unknown-linux-gnu
           path: lib/aarch64-unknown-linux-gnu/
   build-macos-aarch64:
     runs-on: macos-14
@@ -60,7 +60,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-aarch64
+          name: aarch64-apple-darwin
           path: lib/aarch64-apple-darwin/
   build-windows-gnu:
     runs-on: windows-latest
@@ -78,7 +78,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-gnu
+          name: x86_64-pc-windows-gnu
           path: lib/x86_64-pc-windows-gnu/
   commit-libs:
     needs: [build-linux-x86_64, build-linux-aarch64, build-macos-aarch64, build-windows-gnu]
@@ -99,10 +99,7 @@ jobs:
       - name: Organize libraries
         run: |
           mkdir -p lib
-          cp -r artifacts/linux-x86_64/* lib/ 2>/dev/null || true
-          cp -r artifacts/linux-aarch64/* lib/ 2>/dev/null || true
-          cp -r artifacts/macos-aarch64/* lib/ 2>/dev/null || true
-          cp -r artifacts/windows-gnu/* lib/ 2>/dev/null || true
+          cp -r artifacts/* lib/
 
       - name: Commit and push
         run: |

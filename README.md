@@ -1,5 +1,11 @@
 # stripack-sys
 
+![build](https://github.com/ChosunOne/stripack-sys/workflows/Run%20Tests/badge.svg)
+[![Documentation](https://docs.rs/stripack-sys/badge.svg)](https://docs.rs/stripack-sys)
+![Crates.io](https://img.shields.io/crates/v/stripack-sys)
+![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
+![Downloads](https://img.shields.io/crates/d/stripack-sys)
+
 Raw Rust FFI bindings to STRIPACK, a Fortran library for Delaunay triangulation and Voronoi diagrams on the unit sphere.
 
 ## Overview
@@ -8,7 +14,13 @@ This crate provides low-level bindings to STRIPACK.
 
 ## Building
 
-Requires a Fortran compiler:
+Pre-compiled binaries for the linked Fortran library are provided for the following platforms:
+    - `x86_64-unknown-linux-gnu`
+    - `aarch64-unknown-linux-gnu`
+    - `aarch64-apple-darwin`
+    - `x86_64-pc-windows-gnu`
+
+Building the linked Fortran library from source requires a Fortran compiler:
 
 ```bash
 # Arch

@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) [2026] [ChosunOne]
+Copyright (c) 2026 ChosunOne
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +210,7 @@ Apache License
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright [2026] [ChosunOne]
+   Copyright 2026 ChosunOne
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

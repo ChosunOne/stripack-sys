@@ -9,6 +9,7 @@ keywords = ["triangle", "mesh", "delaunay", "sphere", "voronoi"]
 categories = ["algorithms", "external-ffi-bindings", "mathematics", "science", "data-structures"]
 documentation = "https://docs.rs/stripack-sys"
 description = "Raw Rust FFI bindings to STRIPACK for Delaunay triangulation on the unit sphere"
+rust-version = "1.93.0"
 
 [build-dependencies]
 which = "^8.0.0"

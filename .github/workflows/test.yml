@@ -86,6 +86,7 @@ jobs:
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
+        if: matrix.os == 'ubuntu-latest'
         with:
           files: lcov.info
           fail_ci_if_error: true

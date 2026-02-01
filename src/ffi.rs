@@ -1824,11 +1824,11 @@ mod test {
             if coeff1.abs() < f64::EPSILON || coeff2.abs() < f64::EPSILON {
                 return Ok(());
             }
-            let n0 = [
+            let n0 = normalize(&[
                 coeff1 * n1[0] + coeff2 * n2[0],
                 coeff1 * n1[1] + coeff2 * n2[1],
                 coeff1 * n1[2] + coeff2 * n2[2],
-            ];
+            ]);
 
             let stp = scalar_triple_product(&n0, &n1, &n2);
             let result = is_left(&n1, &n2, &n0);

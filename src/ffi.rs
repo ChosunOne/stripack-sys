@@ -507,7 +507,7 @@ unsafe extern "C" {
 
     # Returns
 
-    True if and only if `p` lies inside `r` unless `ier /= 0`, in which case the value is not altered.
+    True if and only if `p` lies inside `r` unless `ier != 0`, in which case the value is not altered.
 
     */
     #[link_name = "inside_"]
@@ -929,7 +929,7 @@ unsafe extern "C" {
     * `nrow` - Input. The number of rows (entries per triangle) reserved for the triangle list `ltri`. The
       value must be 6 if only the vertex indexes and neighboring triangle indexes are to be stored, or
       if arc indexes are also to be assigned and stored. Refer to `ltri`.
-    * `nt` - Output. The number of triangles in the triangulation unless `ier /= 0`, which
+    * `nt` - Output. The number of triangles in the triangulation unless `ier != 0`, which
       in case `nt = 0`. `nt = 2n - nb - 2` if `nb >= 3` or `2n-4` if `nb = 0`, where `nb` is the
       number of boundary nodes.
     * `ltri` - Output. The second dimension of `ltri` must be at least `nt`, where `nt` will be at
@@ -950,6 +950,39 @@ unsafe extern "C" {
         lptr: *const c_int,
         lend: *const c_int,
         nrow: *const c_int,
+        nt: *mut c_int,
+        ltri: *mut c_int,
+        ier: *mut c_int,
+    );
+
+    /**
+    Converts a triangulation data structure to a triangle list.
+
+    This subroutine converts a triangulation data structure from the linked list created by `trmesh` to a triangle list.
+
+    It is a version of `trlist` for the special case where the triangle list should only include the nodes that define each triangle.
+
+    # Arguments
+
+    * `n` - Input. The number of nodes in the triangulation.
+    * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The linked list data
+      structure defining the triangulation. Refer to `trmesh`.
+    * `nt` - Output. The number of triangles in the triangulation unless `ier != 0`, in which
+      case `nt = 0`. `nt = 2n - nb - 2` if `nb >= 3` or `2n - 4` if `nb = 0`, where `nb` is the number of boundary nodes.
+    * `ltri[3][*]` - Output. The second dimension of `ltri` must be at least `nt`, where `nt`
+      will be at most `2 * n - 4`. The `j`-th column contains the vertex nodal indexes
+      associated with triangle `j` for `j = 1, ..., nt`. The vertices are ordered counterclockwise with the first vertex taken to be the one with the smallest index. Thus, `ltri[2][j]` and `ltri[3][j]` are larger than `ltri[1][j]` and index adjacent neighbors of node `ltri[1][j]`. The triangles are ordered on first (smallest) vertex indexes.
+    * `ier` - Output. Error indicator:
+      `0`, if no errors were encountered.
+      `1`, if `n` is outside its valid range on input.
+      `2`, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that these arrays are not completely tested for validity.
+    */
+    #[link_name = "trlist2_"]
+    pub fn trlist2(
+        n: *const c_int,
+        list: *const c_int,
+        lptr: *const c_int,
+        lend: *const c_int,
         nt: *mut c_int,
         ltri: *mut c_int,
         ier: *mut c_int,
@@ -2943,6 +2976,69 @@ mod test {
             prop_assert!((xv[0] - expected_vector[0]).abs() < 1e-10, "normalize failed. Expected x={} got x={}", expected_vector[0], xv[0]);
             prop_assert!((yv[0] - expected_vector[1]).abs() < 1e-10, "normalize failed. Expected y={} got y={}", expected_vector[1], yv[0]);
             prop_assert!((zv[0] - expected_vector[2]).abs() < 1e-10, "normalize failed. Expected z={} got z={}", expected_vector[2], zv[0]);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_trlist2(n in 5i32..25i32) {
+            let (x, y, z) = fibonacci_sphere(n as usize);
+            let (list, lptr, lend, lnew) = create_triangulation(n, &x, &y, &z);
+
+            if lnew <= 0 {
+                return Ok(());
+            }
+
+            let max_triangles = (2 * n - 4) as usize;
+            let mut ltri = vec![0i32; 3 * max_triangles];
+            let mut nt = 0i32;
+            let mut ier = 0i32;
+
+            unsafe {
+                trlist2(
+                    &raw const n,
+                    list.as_ptr(),
+                    lptr.as_ptr(),
+                    lend.as_ptr(),
+                    &raw mut nt,
+                    ltri.as_mut_ptr(),
+                    &raw mut ier,
+                );
+            }
+
+            prop_assert_eq!(ier, 0, "trlist2 failed");
+            prop_assert!(nt > 0, "should have at least one triangle");
+            prop_assert!(nt as usize <= max_triangles, "nt exceeds maximum");
+
+            let expected_nt = 2 * n - 4;
+            prop_assert_eq!(nt, expected_nt, "triangle count mismatch: expected {} for n={}, got {}", expected_nt, n, nt);
+
+            for t in 0..nt as usize {
+                let base = t * 3;
+                let v1 = ltri[base];
+                let v2 = ltri[base + 1];
+                let v3 = ltri[base + 2];
+
+                prop_assert!(v1 >= 1 && v1 <= n, "invalid v1: {v1}");
+                prop_assert!(v2 >= 1 && v2 <= n, "invalid v2: {v2}");
+                prop_assert!(v3 >= 1 && v3 <= n, "invalid v3: {v3}");
+
+                prop_assert_ne!(v1, v2, "duplicate vertices in triangle");
+                prop_assert_ne!(v2, v3, "duplicate vertices in triangle");
+                prop_assert_ne!(v1, v3, "duplicate vertices in triangle");
+
+                prop_assert!(v1 < v2, "v1 should be smallest: v1={v1}, v2={v2}");
+                prop_assert!(v1 < v3, "v1 should be smallest: v1={v1}, v3={v3}");
+            }
+
+            for t in 1..nt as usize {
+                let prev_base = (t - 1) * 3;
+                let curr_base = t * 3;
+                let prev_v1 = ltri[prev_base];
+                let curr_v1 = ltri[curr_base];
+
+                prop_assert!(curr_v1 >= prev_v1, "triangles not ordered: {prev_v1} before {curr_v1}");
+            }
         }
     }
 }

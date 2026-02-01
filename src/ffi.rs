@@ -756,6 +756,18 @@ unsafe extern "C" {
     );
 
     /**
+    Normalizes each R83 in an R83Vec to have unit norm.
+
+    # Arguments
+
+    * `n` - Input. The number of nodes in the triangulation.
+    * `x[n]`, `y[n]`, `z[n]` - Input/output. On input, the unnormalized coordinates of the
+      triangulation. On output, the normalized coordinates of the triangulation (unit vectors).
+     */
+    #[link_name = "r83vec_normalize_"]
+    pub fn r83vec_normalize(n: *const c_int, x: *mut c_double, y: *mut c_double, z: *mut c_double);
+
+    /**
     Converts from Cartesian to spherical coordinates (latitude, longitude, radius).
 
     # Arguments
@@ -839,15 +851,6 @@ unsafe extern "C" {
         y: *const c_double,
         z: *const c_double,
     ) -> bool;
-
-    /**
-    Prints the current `YMDHMS` date as a time stamp.
-
-    Example:
-    31 May 2001    9:45:54.872 AM
-    */
-    #[link_name = "timestamp_"]
-    pub fn timestamp();
 
     /**
     Transform spherical coordinates into Cartesian coordinates
@@ -1020,8 +1023,8 @@ unsafe extern "C" {
        and boundary nodes, the last neighbor of each boundary node is represented by the negative of
        its index.
     * `lptr` - Output. Set of pointers (`list` indexes) in one-to-one correspondence with the
-       elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
-       counterclockwise order (the first neighbor follows the last neighbor).
+      elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
+      counterclockwise order (the first neighbor follows the last neighbor).
      * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
        node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
      * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
@@ -2917,6 +2920,29 @@ mod test {
 
             let dot_p_c12 = dot(&p, &c12);
             prop_assert!(dot_p_c12.abs() < 1e-10, "intersection should be perpendicular to c12 normal, dot={dot_p_c12}");
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_r83vec_normalize(x in -10.0f64..10.0, y in -10.0f64..10.0, z in -10.0f64..10.0f64) {
+            let expected_vector = normalize(&[x, y, z]);
+            let mut xv = [x];
+            let mut yv = [y];
+            let mut zv = [z];
+            let n = 1i32;
+            unsafe {
+                r83vec_normalize(
+                    &raw const n,
+                    xv.as_mut_ptr(),
+                    yv.as_mut_ptr(),
+                    zv.as_mut_ptr()
+                );
+            }
+
+            prop_assert!((xv[0] - expected_vector[0]).abs() < 1e-10, "normalize failed. Expected x={} got x={}", expected_vector[0], xv[0]);
+            prop_assert!((yv[0] - expected_vector[1]).abs() < 1e-10, "normalize failed. Expected y={} got y={}", expected_vector[1], yv[0]);
+            prop_assert!((zv[0] - expected_vector[2]).abs() < 1e-10, "normalize failed. Expected z={} got z={}", expected_vector[2], zv[0]);
         }
     }
 }

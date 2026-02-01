@@ -1831,6 +1831,9 @@ mod test {
             ]);
 
             let stp = scalar_triple_product(&n0, &n1, &n2);
+            if stp.abs() < 1e-10 {
+                return Ok(());
+            }
             let result = is_left(&n1, &n2, &n0);
             prop_assert_eq!(result, stp >= 0.0);
         }

@@ -47,4 +47,4 @@ The bundled Fortran code is distributed under the GNU LGPL. See [fortran/LICENSE
 - Reference: R. J. Renka, "Algorithm 772: STRIPACK: Delaunay Triangulation and Voronoi Diagram on the Surface of a Sphere", *ACM Transactions on Mathematical Software*, Vol. 23, No. 3, September 1997, pp. 416-434.
 - DOI: [10.1145/275323.275329](https://doi.org/10.1145/275323.275329)
 
-The Fortran 90 version used in this crate was prepared by [John Burkardt](https://people.sc.fsu.edu/~jburkardt/f_src/stripack/stripack.html) and is distributed under the GNU LGPL.
+The Fortran 90 version used in this crate was prepared by [John Burkardt](https://people.math.sc.edu/Burkardt/f_src/stripack/stripack.html) and is distributed under the GNU LGPL.

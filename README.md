@@ -15,10 +15,10 @@ This crate provides low-level bindings to STRIPACK.
 ## Building
 
 Pre-compiled binaries for the linked Fortran library are provided for the following platforms:
-    - `x86_64-unknown-linux-gnu`
-    - `aarch64-unknown-linux-gnu`
-    - `aarch64-apple-darwin`
-    - `x86_64-pc-windows-gnu`
+    * `x86_64-unknown-linux-gnu`
+    * `aarch64-unknown-linux-gnu`
+    * `aarch64-apple-darwin`
+    * `x86_64-pc-windows-gnu`
 
 Building the linked Fortran library from source requires a Fortran compiler:
 

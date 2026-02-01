@@ -7,4 +7,4 @@
 | 0.1.0   | :white_check_mark: |
 
 ## Reporting a Vulnerability
-Please report vulnerabilities to chosunone <at> proton <dot> me.
+Please report vulnerabilities to chosunone \<at\> proton \<dot\> me.

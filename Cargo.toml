@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 links = "stripack"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/ChosunOne/stripack-sys"
+keywords = ["triangle", "mesh", "delaunay", "sphere", "voronoi"]
+categories = ["algorithms", "external-ffi-bindings", "mathematics", "science", "data-structures"]
+documentation = "https://docs.rs/stripack-sys"
 
 [build-dependencies]
 cc = "1"

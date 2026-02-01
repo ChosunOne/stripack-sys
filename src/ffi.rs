@@ -6,14 +6,14 @@ unsafe extern "C" {
     triangulation of the convex hull of nodes `1, ..., k`.
 
     The algorithm consists of the following steps: node `k` is located relative to the
-    triangulation (`trfind`), its index is added to the data structure (`intadd` or `bdyadd`), and a sequence of swaps (`swptst` and `swap`) are applied to the arcs opposite `k` so that all arcs incident on node `k` and opposite node `k` are locally optimal (statisfy the circumcircle test).
+    triangulation ([trfind]), its index is added to the data structure ([intadd] or [bdyadd]), and a sequence of swaps ([swptst] and [swap]) are applied to the arcs opposite `k` so that all arcs incident on node `k` and opposite node `k` are locally optimal (statisfy the circumcircle test).
 
     Thus, if a Delaunay triangulation of nodes `1` through `k-1` is input, a Delaunay
     triangulation of nodes `1` through `k` will be output.
 
     # Arguments
 
-    * `nst` - Input. The index of a node at which `trfind` begins its search. Search time depends on
+    * `nst` - Input. The index of a node at which [trfind] begins its search. Search time depends on
       the proximity of this node to `k`. If `nst < 1`, the search is begun at node `k-1`.
 
     * `k` - Input. The nodal index (index for `x`, `y`, and `z`, and `lend`) of the new node
@@ -23,12 +23,12 @@ unsafe extern "C" {
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[k]`, `lnew` - Input/Output. On input, the data
       structure associated with the triangulation of nodes `1` to `k-1`. On output, the data has been
       updated to include node `k`. The array lengths are assumed to be large enough to add node `k`.
-      Refer to `trmesh`.
+      Refer to [trmesh].
     * `ier` - Output. Error indicator:
-      `0` if no errors were encountered.
-      `-1` if `k` is outside its valid range on input.
-      `-2` if all nodes (including `k`) are collinear (lie on a common geodesic).
-      `l` if nodes `l` and `k` coincide for some `l < k`
+      * `0` if no errors were encountered.
+      * `-1` if `k` is outside its valid range on input.
+      * `-2` if all nodes (including `k`) are collinear (lie on a common geodesic).
+      * `l` if nodes `l` and `k` coincide for some `l < k`
     */
     #[link_name = "addnod_"]
     pub fn addnod(
@@ -98,9 +98,9 @@ unsafe extern "C" {
       boundary node in the triangulation that is visible from
       node `kk` (the line segment `kk-i1` intersects no arcs).
     * `i2` - Input. The last (leftmost) boundary node that is visible
-      from node `kk`. `i1` and `i2` may be determined by `trfind`.
+      from node `kk`. `i1` and `i2` may be determined by [trfind].
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
-      triangulation data structure created by `trmesh`. Nodes `i1` and `i2` must be included in the triangulation. On output, the data structure is updated with the addition of node `kk`. Node `kk` is connected to `i1`, `i2`, and all boundary nodes in between.
+      triangulation data structure created by [trmesh]. Nodes `i1` and `i2` must be included in the triangulation. On output, the data structure is updated with the addition of node `kk`. Node `kk` is connected to `i1`, `i2`, and all boundary nodes in between.
      */
     #[link_name = "bdyadd_"]
     pub fn bdyadd(
@@ -117,13 +117,13 @@ unsafe extern "C" {
     Returns the boundary nodes of a triangulation.
 
     Given a triangulation of `n` nodes on the
-    unit sphere created by `trmesh`, this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
+    unit sphere created by [trmesh], this subroutine returns an array containing the indexes (if any) of the counterclockwise sequence of boundary nodes, that is, the nodes on the boundary of the convex hull of the set of nodes. The boundary is empty if the nodes do not lie in a single hemisphere. The numbers of boundary nodes, arcs, and triangles are also returned.
 
     # Arguments
 
     * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure
-      defining the triangulation, created by `trmesh`.
+      defining the triangulation, created by [trmesh].
     * `nodes` - Output. The ordered sequence of `nb` boundary node indexes in the range `1` to `n`.
       For safety, the dimension of `nodes` should be `n`.
     * `nb` - Output. The number of boundary nodes.
@@ -154,8 +154,8 @@ unsafe extern "C" {
     * `c[3]` - Output. The coordinates of the circumcenter unless `0 < ier`, which in case `c` is
       not defined. `c = (v2 - v1) X (v3 - v1)` normalized to a unit vector.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `v1`, `v2`, and `v3` lie on a common line: `(v2 - v1) X (v3 - v1) = 0`.
+      * `0`, if no errors were encountered.
+      * `1`, if `v1`, `v2`, and `v3` lie on a common line: `(v2 - v1) X (v3 - v1) = 0`.
     */
     #[link_name = "circum_"]
     pub fn circum(
@@ -175,9 +175,9 @@ unsafe extern "C" {
 
     * `kk` - Input. Index of the node to be connected to the set of all boundary nodes. `4 <= kk`.
     * `n0` - Input. Index of a boundary node (in the range `1` to `kk - 1`). `n0` may be
-      determined by `trfind`.
+      determined by [trfind].
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The
-      triangulation data structure created by `trmesh`. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
+      triangulation data structure created by [trmesh]. Node `n0` must be included in the triangulation. On output, updated with the addition of node `kk` as the last entry. The updated triangulation contains no boundary nodes.
     */
     #[link_name = "covsph_"]
     pub fn covsph(
@@ -205,9 +205,9 @@ unsafe extern "C" {
     * `ncol` - Input. The number of columns reserved for `ltri`. This must be at least `nb - 2`,
       where `nb` is the number of boundary nodes.
     * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes (unit vectors).
-    * `list[6 * (n - 2)]` - Input. The set of adjacency lists. Refer to `trmesh`.
-    * `lend[n]` - Input. The set of pointers to ends of adjacency lists. Refer to `trmesh`.
-    * `lptr[6 * (n - 2)]` - Input/output. Pointers associated with `list`. Refer to `trmesh`. On
+    * `list[6 * (n - 2)]` - Input. The set of adjacency lists. Refer to [trmesh].
+    * `lend[n]` - Input. The set of pointers to ends of adjacency lists. Refer to [trmesh].
+    * `lptr[6 * (n - 2)]` - Input/output. Pointers associated with `list`. Refer to [trmesh]. On
       output, pointers associated with `listc`. Updated for the addition of pseudo-triangles if the original triangulation contains boundary nodes (`0 < nb`).
     * `lnew` - Input/output. On input, a pointer to the first empty location in `list` and `lptr` (list length plus one). On output, pointer to the first empty location in `listc` and `lptr` (list length plus one). `lnew` is not altered if `nb = 0`.
     * `ltri[6][ncol]` - Output. Triangle list whose first `nb - 2` columns contain the indexes
@@ -221,10 +221,10 @@ unsafe extern "C" {
     * `rc[2 * n - 4]` - Output. The circumradii (the arc lengths or angles between the
       circumcenters and associated triangle vertices) in 1-1 correspondence with circumcenters.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `n < 3`.
-      `2`, if `ncol < nb - 2`.
-      `3`, if a triangle is degenerate (has vertices lying on a common geodesic).
+      * `0`, if no errors were encountered.
+      * `1`, if `n < 3`.
+      * `2`, if `ncol < nb - 2`.
+      * `3`, if a triangle is degenerate (has vertices lying on a common geodesic).
     */
     #[link_name = "crlist_"]
     pub fn crlist(
@@ -250,7 +250,7 @@ unsafe extern "C" {
     /**
     Deletes a boundary arc from a triangulation.
 
-    This subroutine deletes a boundary arc from a triangulation. It may be used to remove a null triangle from the convex hull boundary. Note, however, that if the union of triangles is rendered nonconvex, subroutines `delnod`, `edge`, and `trfind` (and hence `addnod`) may fail. Also, function `nearnd` should not be called following an arc deletion.
+    This subroutine deletes a boundary arc from a triangulation. It may be used to remove a null triangle from the convex hull boundary. Note, however, that if the union of triangles is rendered nonconvex, subroutines [delnod], [edge], and [trfind] (and hence [addnod]) may fail. Also, function [nearnd] should not be called following an arc deletion.
 
     This routine is identical to the similarly named routine in TRIPACK.
 
@@ -260,13 +260,13 @@ unsafe extern "C" {
     * `io1`, `io2` - Input. Indexes (in the range of `1` to `n`) of a pair of adjacent boundary
       nodes defining the arc to be removed.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The triangulation
-      data structure created by `trmesh`. On output, updated with the removal of arc `io1-io2` unless `0 < ier`.
+      data structure created by [trmesh]. On output, updated with the removal of arc `io1-io2` unless `0 < ier`.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `n`, `io1`, or `io2` is outside its valid range, or `io1 = io2`.
-      `2`, if `io1-io2` is not a boundary arc.
-      `3`, if the node opposite `io1-io2` is already a boundary node, and thus `io1` or `io2` has only two neighbors or a deletion would result in two triangulations sharing a single node.
-      `4`, if one of the nodes is a neighbor of the other, but not vice versa, implying an invalid triangulation data structure.
+      * `0`, if no errors were encountered.
+      * `1`, if `n`, `io1`, or `io2` is outside its valid range, or `io1 = io2`.
+      * `2`, if `io1-io2` is not a boundary arc.
+      * `3`, if the node opposite `io1-io2` is already a boundary node, and thus `io1` or `io2` has only two neighbors or a deletion would result in two triangulations sharing a single node.
+      * `4`, if one of the nodes is a neighbor of the other, but not vice versa, implying an invalid triangulation data structure.
      */
     #[link_name = "delarc_"]
     pub fn delarc(
@@ -320,7 +320,7 @@ unsafe extern "C" {
     /**
     Deletes a node from a triangulation.
 
-    This subroutine deletes node `k` (along with all arcs incident on node `k`) from a triangulation of `n` nodes on the unit sphere, and inserts arcs as necessary to produce a triangulation of the remaining `n - 1` nodes. If a Delaunay triangulation is input, a Delaunay triangulation will result, and thus, `delnod` reverses the effect of a call to `addnod`.
+    This subroutine deletes node `k` (along with all arcs incident on node `k`) from a triangulation of `n` nodes on the unit sphere, and inserts arcs as necessary to produce a triangulation of the remaining `n - 1` nodes. If a Delaunay triangulation is input, a Delaunay triangulation will result, and thus, [delnod] reverses the effect of a call to [addnod].
 
     Note that the deletion may result in all remaining nodes being collinear. This situation is not flagged.
 
@@ -332,18 +332,18 @@ unsafe extern "C" {
     * `x[n]`, `y[n]`, `z[n]` - Input/output. The coordinates of the nodes in the triangulation.
       On output, updated with elements `k + 1, ..., n + 1` shifted up one position, thus overwriting element `k`, unless `1 <= ier <= 4`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The data
-      structure defining the triangulation, created by `trmesh`. On output, updated to reflect the deletion unless `1 <= ier <= 4`. Note that the data structure may have been altered if `3 < ier`.
+      structure defining the triangulation, created by [trmesh]. On output, updated to reflect the deletion unless `1 <= ier <= 4`. Note that the data structure may have been altered if `3 < ier`.
     * `lwk` - Input/output. The number of columns reserved for `iwk`. `lkw` must be at least
       `nnb-3`, where `nnb` is the number of neighbors of node `k`, including an extra pseudo-node if `k` is a boundary node. On output, the number of `iwk` columns required unless `ier = 1` or `ier = 3`.
     * `iwk[2][lwk]` - Output. The indexes of the endpoints of the new arcs added unless `lwk = 0` or `1 <= ier <= 4`. (Arcs are associated with columns.)
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered
-      `1`, if `k` or `n` is outside its valid range or `lwk < 0` on input.
-      `2`, if more space is required in `iwk`. Refer to `lwk`.
-      `3`, if the triangulation data structure is invalid on input.
-      `4`, if `k` indexes an interior node with four or more neighbors, none of which can be swapped out due to collinearity, and `k` cannot therefore be deleted.
-      `5`, if an error flag (other than `ier = 1`) was returned by `optim`. An error message is written to the standard output unit in this case.
-      `6`, if error flag `1` was returned by `optim`. This is not necessarily an error, but the arcs may not be optimal.
+      * `0`, if no errors were encountered
+      * `1`, if `k` or `n` is outside its valid range or `lwk < 0` on input.
+      * `2`, if more space is required in `iwk`. Refer to `lwk`.
+      * `3`, if the triangulation data structure is invalid on input.
+      * `4`, if `k` indexes an interior node with four or more neighbors, none of which can be swapped out due to collinearity, and `k` cannot therefore be deleted.
+      * `5`, if an error flag (other than `ier = 1`) was returned by [optim]. An error message is written to the standard output unit in this case.
+      * `6`, if error flag `1` was returned by [optim]. This is not necessarily an error, but the arcs may not be optimal.
     */
     #[link_name = "delnod_"]
     pub fn delnod(
@@ -370,10 +370,10 @@ unsafe extern "C" {
     close as possible to a Delaunay triangulation in the sense that all arcs other than `in1-in2`
     are locally optimal.
 
-    A sequence of calls to `edge` may be used to force the presence of a set of edges defining the
+    A sequence of calls to [edge] may be used to force the presence of a set of edges defining the
     boundary of a non-convex and/or multiply connected region, or to introduce barriers into the
-    triangulation. Note that `getnp` will not necessarily return closest nodes if the triangulation
-    has been constrained by a call to `edge`. However, this is appropriate in some applications,
+    triangulation. Note that [getnp] will not necessarily return closest nodes if the triangulation
+    has been constrained by a call to [edge]. However, this is appropriate in some applications,
     such as triangle-based interpolation on a nonconvex domain.
 
     # Arguments
@@ -390,18 +390,18 @@ unsafe extern "C" {
       `in1->in2` occupy columns `k + 1, ..., lwk`. (`k` can be determined by searching `iwk` for the
       zeros.)
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input/output. The data structure
-      defining the triangulation, created by `trmesh`. On output, updated if necessary to refelct the
+      defining the triangulation, created by [trmesh]. On output, updated if necessary to refelct the
       presence of an arc connecting `in1` and `in2` unless `0 < ier`. The data structure has been
       altered if `4 <= ier`.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered
-      `1`, if `in1 < 1`, `in2 < 1`, `in1 = in2`, or `lwk < 0` on input.
-      `2`, if more space is required in `iwk`. Refer to `lwk`.
-      `3`, if `in1` and `in2` could not be connected due to either an invalid data structure or
-      collinear nodes (and floating point error).
-      `4`, if an error flag other than `ier = 1` was returned by `optim`
-      `5`, if error flag `1` was returned by `optim`. This is not necessarily an error, but the arcs
-      other than `in1-in2` may not be optimal
+      * `0`, if no errors were encountered
+      * `1`, if `in1 < 1`, `in2 < 1`, `in1 = in2`, or `lwk < 0` on input.
+      * `2`, if more space is required in `iwk`. Refer to `lwk`.
+      * `3`, if `in1` and `in2` could not be connected due to either an invalid data structure or
+        collinear nodes (and floating point error).
+      * `4`, if an error flag other than `ier = 1` was returned by [optim]
+      * `5`, if error flag `1` was returned by [optim]. This is not necessarily an error, but the arcs
+        other than `in1-in2` may not be optimal
     */
     #[link_name = "edge_"]
     pub fn edge(
@@ -429,7 +429,7 @@ unsafe extern "C" {
 
     * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The triangulation data
-      structure, created by `trmesh`.
+      structure, created by [trmesh].
     * `l` - Input. The number of nodes in the sequence on output. `2 <= l <= n`.
     * `npts[l]` - Input/output. On input, the indexes of the `l - 1` closest nodes to `npts[1]`
       in the first `l - 1` locations. On output, updated with the index of the `l`-th closest
@@ -470,7 +470,7 @@ unsafe extern "C" {
     * `k` - Input. The index of the node to be inserted.
     * `lp` - Input. The `list` pointer of `n2` as a neighbor of `n1`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lnew` - Input/Output.
-      The data structure defining the triangulation, created by `trmesh`. On output, updated with the addition of node `k`
+      The data structure defining the triangulation, created by [trmesh]. On output, updated with the addition of node `k`
     */
     #[link_name = "insert_"]
     pub fn insert(
@@ -488,7 +488,7 @@ unsafe extern "C" {
 
     The algorithm consists of selecting a point `q` in `r` and then finding all points at which the great circle defined by `p` and `q` intersects the boundary of `r`. `p` lies inside `r` if and only if there is an even number of intersection points between `q` and `p`. `q` is taken to be a point immediately to the left of a directed boundary edge -- the first one that results in no consistency-check failures.
 
-    If `p` is close to the polygon boundary, the problem is ill-conditioned and the decision may be incorrect. Also, an incorrect decision may result from a poor choice of `q` (if, for example, a boundary edge lies on the great circle defined by `p` and `q`). A more reliable result could be obtained by a sequence of calls to `inside` with the vertices cyclically permuted before each call (to alter the choice of `q`).
+    If `p` is close to the polygon boundary, the problem is ill-conditioned and the decision may be incorrect. Also, an incorrect decision may result from a poor choice of `q` (if, for example, a boundary edge lies on the great circle defined by `p` and `q`). A more reliable result could be obtained by a sequence of calls to [inside] with the vertices cyclically permuted before each call (to alter the choice of `q`).
 
     # Arguments
 
@@ -499,11 +499,11 @@ unsafe extern "C" {
     * `listv[nv]` - Input. The indexes (for `xv`, `yv`, and `zv`) of a cyclically-ordered (and
       CCW-ordered) sequence of vertices that define `r`. The last vertex (indexed by `listv[nv]`) is followed by the first (indexed by `listv[1]`). `listv` entries must be in the range `1` to `lv`.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `lv` or `nv` is outside its valid range.
-      `2`, if a `listv` entry is outside its valid range.
-      `3`, if the polygon boundary was found to be self-intersecting. This error will not necessarily be detected.
-      `4`, if every choice of `q` (one for each boundary edge) led to failure of some internal consistency check. The most likely cause of this error is invalid input: `p = (0, 0, 0)`, a null or self-intersecting polygon, etc.
+      * `0`, if no errors were encountered.
+      * `1`, if `lv` or `nv` is outside its valid range.
+      * `2`, if a `listv` entry is outside its valid range.
+      * `3`, if the polygon boundary was found to be self-intersecting. This error will not necessarily be detected.
+      * `4`, if every choice of `q` (one for each boundary edge) led to failure of some internal consistency check. The most likely cause of this error is invalid input: `p = (0, 0, 0)`, a null or self-intersecting polygon, etc.
 
     # Returns
 
@@ -536,7 +536,7 @@ unsafe extern "C" {
     * `i1`, `i2`, `i3` - Input. Indexes of the counterclockwise-orderd sequence of vertices of a
       triangle which contains node `kk`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]`, `lnew` - Input/output. The data structure
-      defining the triangulation, created by `trmesh`. Triangle (`i1`, `i2`, `i3`) must be included in the triangulation. On output, updated with the addition of node `kk`. `kk` will be connected to nodes `i1`, `i2`, and `i3`.
+      defining the triangulation, created by [trmesh]. Triangle (`i1`, `i2`, `i3`) must be included in the triangulation. On output, updated with the addition of node `kk`. `kk` will be connected to nodes `i1`, `i2`, and `i3`.
     */
     #[link_name = "intadd_"]
     pub fn intadd(
@@ -564,9 +564,9 @@ unsafe extern "C" {
     * `p` - Output. Point of intersection defined above unless `ier` is not 0, in which case `p`
       is not altered.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `<cn, p1> = <cn, p2>`. This occurs if and only if `p1 = p2` or `cn = 0` or there are two intersection points at the same distance from `a`.
-      `2` if `p2 = -p1` and the definition of `a` is therefore ambiguous.
+      * `0`, if no errors were encountered.
+      * `1`, if `<cn, p1> = <cn, p2>`. This occurs if and only if `p1 = p2` or `cn = 0` or there are two intersection points at the same distance from `a`.
+      * `2` if `p2 = -p1` and the definition of `a` is therefore ambiguous.
     */
     #[link_name = "intrsc_"]
     pub fn intrsc(
@@ -633,9 +633,9 @@ unsafe extern "C" {
     * `nb` - Input. The index of the node whose pointer is to be returned. `nb` must be connected to
       `n0`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]` - Input. The data structure defining the
-      triangulation, created by `trmesh`.
+      triangulation, created by [trmesh].
 
-      # Returns
+    # Returns
     Pointer `lstptr` such that `list[lstptr] = nb` or `list[lstptr] = -nb`, unless `nb`
       is not a neighbor of `n0`, in which case `lstptr = lpl`.
     */
@@ -650,7 +650,7 @@ unsafe extern "C" {
     /**
     Returns the number of neighbors of a node.
 
-    This function returns the number of neighbors of a node `n0` in a triangulation created by `trmesh`.
+    This function returns the number of neighbors of a node `n0` in a triangulation created by [trmesh].
 
     The number of neighbors also gives the order of the Voronoi polygon containing the point. Thus, a neighbor count of `6` means the node is contained in a `6`-sided Voronoi region.
 
@@ -671,13 +671,13 @@ unsafe extern "C" {
     /**
     Returns the nearest node to a given point.
 
-    Given a point `p` on the surface of the unit sphere and a Delaunay triangulation created by `trmesh`, this function returns the index of the nearest triangulation node to `p`.
+    Given a point `p` on the surface of the unit sphere and a Delaunay triangulation created by [trmesh], this function returns the index of the nearest triangulation node to `p`.
 
     The algorithm consists of implicitly adding `p` to the triangulation, finding the nearest neighbor to `p`, and implicitly deleting `p` from the triangulation. Thus, it is based on the fact that, if `p` is a node in a Delaunay triangulation, the nearest node to `p` is a neighbor of `p`.
 
     For large values of `n`, this procedure will be faster than the naive approach of computing the distance from `p` to every node.
 
-    Note that the number of candidates for `nearnd` (neighbors of `p`) is limited to `lmax` defined in the arguments below.
+    Note that the number of candidates for [nearnd] (neighbors of `p`) is limited to `lmax` defined in the arguments below.
 
     # Arguments
 
@@ -690,8 +690,8 @@ unsafe extern "C" {
     * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
     * `x[n]`, `y[n]`, `z[n]` - Input. The Cartesian coordinates of the nodes.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure defining
-      the triangulation, created by `trmesh`.
-    * `al` - Output. The arc length between `p` and node `nearnd`. Because both points are on
+      the triangulation, created by [trmesh].
+    * `al` - Output. The arc length between `p` and node [nearnd]. Because both points are on
       the unit sphere, this is also the angular separation in radians.
 
     # Returns
@@ -729,19 +729,19 @@ unsafe extern "C" {
     * `x[*]`, `y[*]`, `z[*]` - Input. The nodal coordinates.
     * `na` - Input. The number of arcs in the set. `na >= 0`.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input/output. The data structure
-      defining the triangulation, created by `trmesh`. On output, updated to reflect the swaps.
+      defining the triangulation, created by [trmesh]. On output, updated to reflect the swaps.
     * `nit` - Input/output. On input, the maximum number of iterations to be performed. `nit = 4 *
     na` should be sufficient. `nit >= 1`. On output, the number of iterations performed.
     * `iwk[2][na]` - Input/output. The nodal indexes of the arc endpoints (paris of endpoints are
       stored in columns). On output, endpoint indexes of the new set of arcs reflecting the swaps.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if a swap occurred on the last of `maxit` iterations, where `maxit` is the value of
-      `nit` on input. The new set of arcs is not necessarily optimal in this case.
-      `2`, if `na < 0` or `nit < 1` on input
-      `3`, if `iwk[2][i]` is not a neighbor of `iwk[1][i]` for some `i` in the range `1` to `na`. A
-      swap may have occurred in this case.
-      `4`, if a zero pointer was returned by subroutine `swap`.
+      * `0`, if no errors were encountered.
+      * `1`, if a swap occurred on the last of `maxit` iterations, where `maxit` is the value of
+        `nit` on input. The new set of arcs is not necessarily optimal in this case.
+      * `2`, if `na < 0` or `nit < 1` on input
+      * `3`, if `iwk[2][i]` is not a neighbor of `iwk[1][i]` for some `i` in the range `1` to `na`. A
+        swap may have occurred in this case.
+      * `4`, if a zero pointer was returned by subroutine [swap].
     */
     #[link_name = "optim_"]
     pub fn optim(
@@ -807,7 +807,7 @@ unsafe extern "C" {
       triangles on input.
 
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input/output. The data structure
-      defining the triangulation, created by `trmesh`. On output, updated with the swap; triangles
+      defining the triangulation, created by [trmesh]. On output, updated with the swap; triangles
       (`io1`, `io2`, `in1`) and (`io2`, `io1`, `in2`) are replaced by (`in1`, `in2`, `io2`) and (`in2`, `in1`, `io1`) unless `lp21 = 0`.
     * `lp21` - Output. Index of `in1` as a neighbor of `in2` after the swap is performed unless `in1` and `in2` are adjacent on input, in which case `lp21 = 0`.
     */
@@ -836,7 +836,7 @@ unsafe extern "C" {
     * `n1`, `n2`, `n3`, `n4` - Input. The indexes of the four nodes defining the quadrilateral with
       `n1` adjacent to `n2`, and (`n1`, `n2`, `n3`) in counterclockwise order. The arc connecting `n1`
       to `n2` should be replaced by an arc connection `n3` to `n4` if `swptst = true`. Refer to
-      subroutine `swap`.
+      subroutine [swap].
     * `x[n]`, `y[n]`, `z[n]` - Input. The coordinates of the nodes.
 
     # Returns
@@ -856,7 +856,7 @@ unsafe extern "C" {
 
     /**
     Transform spherical coordinates into Cartesian coordinates
-    on the unit sphere for input to `trmesh`.
+    on the unit sphere for input to [trmesh].
 
     Storage for X and Y may coincide with storage for `rlat` and `rlon` if the latter need not be saved.
 
@@ -884,18 +884,18 @@ unsafe extern "C" {
     /**
     Locates a point relative to a triangulation.
 
-    This subroutine locates a point `p` relative to a triangulation created by `trmesh`. If `p` is contained
+    This subroutine locates a point `p` relative to a triangulation created by [trmesh]. If `p` is contained
     in a triangle, the three vertex indexes and barycentric coordinates are returned. Otherwise, the
     indexes of the visible boundary nodes are returned.
 
     # Arguments
-    * `nst` - Input. The index of a node at which `trfind` begins its search. Search time depends on
+    * `nst` - Input. The index of a node at which [trfind] begins its search. Search time depends on
       the proximity of this node to `p`.
     * `p[3]` - Input. The x, y, and z coordinates (in that order) of the point `p` to be located.
     * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
     * `x[n]`, `y[n]`, `z[n]`, the coordinates of the triangulation nodes (unit vectors).
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The data structure defining the
-      triangulation, created by `trmesh`.
+      triangulation, created by [trmesh].
       `b1`, `b2`, `b3` - Output. The unnormalized barycentric coordinates of the central projection of
       `p` onto the underlying planar triangle if `p` is in the convex hull of the nodes. These
       parameters are not altered if `i1 = 0`.
@@ -942,10 +942,10 @@ unsafe extern "C" {
       rows) associated with triangle `j` for `j = 1, ..., nt`. The vertices are ordered counterclockwise
       with the first vertex taken to be the one with smallest index. Thus `ltri[2][j]` and `ltri[3][j]` are larger than `ltri[1, j]` and index adjacent neighbors of node `ltri[1][j]`. For `i = 1, 2, 3`, `ltri[i + 3][j]` and `ltri[i + 6][j]` index the triangle and arc, respectively, which are opposite (not shared by) node `ltri[i][j]`, with `ltri[i + 3, j] = 0` if `ltri[i + 6][j]` indexes a boundary arc. Vertex indexes range from `1` to `n`, triangle indexes from `0` to `nt`, and, if included, arc indexes from `1` to `na`, where `na = 3n - nb - 3` if `nb >= 3` or `3n - 6` if `nb = 0`. The triangles are ordered on first (smallest) vertex indexes.
     * ier - Output. Error indicator.
-      0, if no errors were encountered.
-      1, if `n` or `nrow` is outside its valid range on input.
-      2, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that
-      these arrays are not completely tested for validity.
+      * `0`, if no errors were encountered.
+      * `1`, if `n` or `nrow` is outside its valid range on input.
+      * `2`, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that
+        these arrays are not completely tested for validity.
     */
     #[link_name = "trlist_"]
     pub fn trlist(
@@ -962,24 +962,24 @@ unsafe extern "C" {
     /**
     Converts a triangulation data structure to a triangle list.
 
-    This subroutine converts a triangulation data structure from the linked list created by `trmesh` to a triangle list.
+    This subroutine converts a triangulation data structure from the linked list created by [trmesh] to a triangle list.
 
-    It is a version of `trlist` for the special case where the triangle list should only include the nodes that define each triangle.
+    It is a version of [trlist] for the special case where the triangle list should only include the nodes that define each triangle.
 
     # Arguments
 
     * `n` - Input. The number of nodes in the triangulation.
     * `list[6 * (n - 2)]`, `lptr[6 * (n - 2)]`, `lend[n]` - Input. The linked list data
-      structure defining the triangulation. Refer to `trmesh`.
+      structure defining the triangulation. Refer to [trmesh].
     * `nt` - Output. The number of triangles in the triangulation unless `ier != 0`, in which
       case `nt = 0`. `nt = 2n - nb - 2` if `nb >= 3` or `2n - 4` if `nb = 0`, where `nb` is the number of boundary nodes.
     * `ltri[3][*]` - Output. The second dimension of `ltri` must be at least `nt`, where `nt`
       will be at most `2 * n - 4`. The `j`-th column contains the vertex nodal indexes
       associated with triangle `j` for `j = 1, ..., nt`. The vertices are ordered counterclockwise with the first vertex taken to be the one with the smallest index. Thus, `ltri[2][j]` and `ltri[3][j]` are larger than `ltri[1][j]` and index adjacent neighbors of node `ltri[1][j]`. The triangles are ordered on first (smallest) vertex indexes.
     * `ier` - Output. Error indicator:
-      `0`, if no errors were encountered.
-      `1`, if `n` is outside its valid range on input.
-      `2`, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that these arrays are not completely tested for validity.
+      * `0`, if no errors were encountered.
+      * `1`, if `n` is outside its valid range on input.
+      * `2`, if the triangulation data structure (`list`, `lptr`, `lend`) is invalid. Note, however, that these arrays are not completely tested for validity.
     */
     #[link_name = "trlist2_"]
     pub fn trlist2(
@@ -1017,38 +1017,31 @@ unsafe extern "C" {
      for example, the nodes are ordered on increasing latitude.
 
      Spherical coordinates (latitude and longitude) may be converted to Cartesian coordinates by
-     `trans`.
+     [trans].
 
      The following is a list of the software package modules which a user may wish to call directly:
-     `addnod` - Updates the triangulation by appending a new node.
-     `areas` - Returns the area of a spherical triangle
-     `bnodes` - Returns an array containing the index of the boundary nodes (if any) in
-     counterclockwise order. Counts of boundary nodes, triangles, and arcs are also returned.
-     `circum` - Returns the circumcenter of a spherical triangle.
-     `crlist` - Returns the set of triangle circumcenters (Voronoi vertices) and circumradii
-     associated with a triangulation.
-     `delarc` - Deletes a boundary arc from a triangulation.
-     `edge` - Forces an arbitrary pair of nodes to be connected by an arc in the triangulation.
-     `getnp` - Determines the ordered sequence of L closest nodes to a given node, along with the
-     associated distances.
-     `inside` - Locates a point relative to a polygon on the surface of the sphere.
-     `intrsc` - Returns the point of intersection between a pair of great circle arcs.
-     `jrand` - Generates a uniformly distributed pseudo-random integer.
-     `left` - Locates a point relative to a great circle
-     `nearnd` - Returns the index of the nearest node to an arbitrary point, along with its squared
-     distance.
-     `scoord` - Converts a point from Cartesian coordinates to spherical coordinates.
-     `store` - Forces a value to be stored in main memory so that the precision of floating point
-     numbers in memory locations rather than registers is computed
-     `trans` - Transforms spherical coordinates into Cartesian coordinates on the unit sphere for
-     input to `trmesh`
-     `trlist` - Converts the triangulation data structure to a triangle list more suitable for use in
-     a finite element code.
-     `trlprt` - Creates a Delaunay triangulation of a set of nodes.
-     `trplot` - Creates a level-2 Encapsulated Postscript (EPS) file containing a triangulation plot.
-     `trprnt` - Prints the triangulation data structure and, optionally, the nodal coordinates.
-    `vrplot` - Createsa level-2 Encapsulated Postscript (EPS) file containing a Voronoi diagram
-     plot.
+     * [addnod] - Updates the triangulation by appending a new node.
+     * [areas] - Returns the area of a spherical triangle
+     * [bnodes] - Returns an array containing the index of the boundary nodes (if any) in
+       counterclockwise order. Counts of boundary nodes, triangles, and arcs are also returned.
+     * [circum] - Returns the circumcenter of a spherical triangle.
+     * [crlist] - Returns the set of triangle circumcenters (Voronoi vertices) and circumradii
+       associated with a triangulation.
+     * [delarc] - Deletes a boundary arc from a triangulation.
+     * [edge] - Forces an arbitrary pair of nodes to be connected by an arc in the triangulation.
+     * [getnp] - Determines the ordered sequence of L closest nodes to a given node, along with the
+       associated distances.
+     * [inside] - Locates a point relative to a polygon on the surface of the sphere.
+     * [intrsc] - Returns the point of intersection between a pair of great circle arcs.
+     * [jrand] - Generates a uniformly distributed pseudo-random integer.
+     * [left] - Locates a point relative to a great circle
+     * [nearnd] - Returns the index of the nearest node to an arbitrary point, along with its squared
+       distance.
+     * [scoord] - Converts a point from Cartesian coordinates to spherical coordinates.
+     * [trans] - Transforms spherical coordinates into Cartesian coordinates on the unit sphere for
+       input to [trmesh]
+     * [trlist] - Converts the triangulation data structure to a triangle list more suitable for use in
+       a finite element code.
 
      # Arguments
      * `n` - Input. The number of nodes in the triangulation. `3 <= n`.
@@ -1062,23 +1055,23 @@ unsafe extern "C" {
     * `lptr` - Output. Set of pointers (`list` indexes) in one-to-one correspondence with the
       elements of `list`. `list[lptr[i]]` indexes the node which follows `list[i]` in cyclical
       counterclockwise order (the first neighbor follows the last neighbor).
-     * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
-       node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
-     * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
-       one). `list`, `lptr`, `lend` and `lnew` are not altered if `ier < 0`, and are incomplete if `0 <
+    * `lend` - Output. `n` pointers to adjacency lists. `lend[k]` points to the last neighbor of
+      node `k`. `list[lend[k]] < 0` if and only if `k` is a boundary node.
+    * `lnew` - Output. Pointer to the first empty location in `list` and `lptr` (list length plus
+      one). `list`, `lptr`, `lend` and `lnew` are not altered if `ier < 0`, and are incomplete if `0 <
      ier`.
-     * `near` - Workspace. An array of `n` integers used to efficiently determine the nearest
-       triangulation node to each unprocessed node for use by `addnod`.
-     * `next` - Workspace. An array of `n` integers used to efficiently determine the nearest triangulation node
-       to each unprocessed node for use by `addnod`.
-     * `dist` - Workspace. An array of `n` floats used to efficiently determine the neareast
-       triangulation node to each unprocessed node for use by `addnod`.
-     * `ier` - Output. An integer error indicator:
-       0, if no errors were ecountered.
-       -1, if `n < 3` on input.
-       -2, if the first three nodes are collinear.
-       L, if nodes L and M coincide for some L < M. The data structure represents a triangulation
-       of nodes 1 to M-1 in this case.
+    * `near` - Workspace. An array of `n` integers used to efficiently determine the nearest
+      triangulation node to each unprocessed node for use by [addnod].
+    * `next` - Workspace. An array of `n` integers used to efficiently determine the nearest triangulation node
+      to each unprocessed node for use by [addnod].
+    * `dist` - Workspace. An array of `n` floats used to efficiently determine the neareast
+      triangulation node to each unprocessed node for use by [addnod].
+    * `ier` - Output. An integer error indicator:
+       * `0`, if no errors were encountered.
+       * `-1`, if `n < 3` on input.
+       * `-2`, if the first three nodes are collinear.
+       * `L`, if nodes L and M coincide for some L < M. The data structure represents a triangulation
+         of nodes 1 to M-1 in this case.
      */
     #[link_name = "trmesh_"]
     pub fn trmesh(

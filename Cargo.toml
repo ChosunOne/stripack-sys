@@ -8,9 +8,9 @@ repository = "https://github.com/ChosunOne/stripack-sys"
 keywords = ["triangle", "mesh", "delaunay", "sphere", "voronoi"]
 categories = ["algorithms", "external-ffi-bindings", "mathematics", "science", "data-structures"]
 documentation = "https://docs.rs/stripack-sys"
+description = "Raw Rust FFI bindings to STRIPACK for Delaunay triangulation on the unit sphere"
 
 [build-dependencies]
-cc = "1"
 
 [dev-dependencies]
 rstest = "^0.26.1"

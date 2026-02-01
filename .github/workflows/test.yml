@@ -61,6 +61,8 @@ jobs:
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
+        env:
+          PROPTEST_CASES: 1000
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -70,6 +72,13 @@ jobs:
 
       - name: Test
         run: cargo nextest run
+
+      - name: Upload proptest regresions on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proptest-regressions-${{ matrix.name }}
+          path: proptest-regressions/
 
       - name: Generate coverage
         run: cargo llvm-cov --lcov --output-path lcov.info

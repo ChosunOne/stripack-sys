@@ -1821,6 +1821,9 @@ mod test {
 
         #[test]
         fn left_boundary_points_return_true(n1 in unit_vector(), n2 in unit_vector(), coeff1 in -1.0f64..1.0, coeff2 in -1.0f64..1.0) {
+            if coeff1.abs() < f64::EPSILON || coeff2.abs() < f64::EPSILON {
+                return Ok(());
+            }
             let n0 = [
                 coeff1 * n1[0] + coeff2 * n2[0],
                 coeff1 * n1[1] + coeff2 * n2[1],

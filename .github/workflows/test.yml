@@ -45,28 +45,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Fortran (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y gfortran
-
-      - name: Setup Fortran (macOS)
-        if: startsWith(matrix.os, 'macos')
-        run: brew install gcc
-
-      - name: Debug gfortran location (macOS)
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          which gfortran
-          ls -la /opt/homebrew/lib/ | grep gfortran || echo "not in /opt/homebrew/lib"
-          ls -la /opt/homebrew/lib/gcc/*/ || echo "checking gcc subdirs"
-          brew list gcc | grep gfortran || echo "checking brew list"
-
-      - name: Setup Fortran (Wndows)
-        if: matrix.os == 'windows-latest'
-        uses: msys2/setup-msys2@v2
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
         with:
-          install: >-
-            mingw-w64-x86_64-gcc-fortran
+          compiler: gcc
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

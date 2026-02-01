@@ -54,7 +54,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: (Windows) Set to GNU toolchain
-        if: matrix.os == "windows-latest"
+        if: matrix.os == 'windows-latest'
         run: |
           rustup target add x86_64-pc-windows-gnu
           rustup default stable-x86_64-pc-windows-gnu

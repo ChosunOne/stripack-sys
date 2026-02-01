@@ -35,7 +35,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static=quadmath");
     } else if target.contains("darwin") {
         println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
-        println!("cargo:rustc-link-search=native=/opt/homebrew/gcc/14");
+        println!("cargo:rustc-link-search=native=/opt/homebrew/lib/gcc/14");
         println!("cargo:rustc-link-search=native=/usr/local/lib");
         println!("cargo:rustc-link-lib=gfortran");
     } else {

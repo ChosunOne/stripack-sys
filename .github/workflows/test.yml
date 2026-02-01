@@ -53,6 +53,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: (Windows) Set to GNU toolchain
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          rustup default stable-x86_64-pc-windows-gnu
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@cargo-nextest
 

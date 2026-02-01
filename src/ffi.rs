@@ -2212,7 +2212,7 @@ mod test {
         #[test]
         fn test_insert(n in 6..15i32, insertion_point in 1..3usize) {
             let (x, y, z) = fibonacci_sphere(n as usize);
-            let (mut list, mut lptr, mut lend, mut lnew) = create_triangulation(n, &x, &y, &z);
+            let (mut list, mut lptr, lend, mut lnew) = create_triangulation(n, &x, &y, &z);
 
             let lpl = lend[0];
 

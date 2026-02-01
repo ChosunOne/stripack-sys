@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Install Fortran
         uses: fortran-lang/setup-fortran@v1
         with:
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2014_aarch64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Install Fortran
         uses: fortran-lang/setup-fortran@v1
         with:
@@ -75,7 +75,7 @@ jobs:
       - name: Build library
         shell: msys2 {0}
         run: |
-          x86_64-w64-mingw32-gfortran -c -O3 fortran/stripack.f90 -o stripack.o
+          gfortran -c -O3 fortran/stripack.f90 -o stripack.o
           mkdir -p lib/x86_64-pc-windows-gnu
           x86_64-w64-mingw32-ar rcs lib/x86_64-pc-windows-gnu/libstripack.a stripack.o
       - name: Upload artifact

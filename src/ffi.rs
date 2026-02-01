@@ -624,7 +624,9 @@ unsafe extern "C" {
     ) -> bool;
 
     /**
-    Returns the index (`list` pointer) of `nb` in the adjacency list for `n0`, where `lpl = lend[n0]`. This function is identical to the similarly named function in TRIPACK.
+    Returns the index of `nb` in the adjacency list.
+
+    This function returns the index (`list` pointer) of `nb` in the adjacency list for `n0`, where `lpl = lend[n0]`. This function is identical to the similarly named function in TRIPACK.
 
     # Arguments
     * `lpl` - Input. Is `lend[n0]`
@@ -880,7 +882,9 @@ unsafe extern "C" {
     );
 
     /**
-    Locates a point `p` relative to a triangulation created by `trmesh`. If `p` is contained
+    Locates a point relative to a triangulation.
+
+    This subroutine locates a point `p` relative to a triangulation created by `trmesh`. If `p` is contained
     in a triangle, the three vertex indexes and barycentric coordinates are returned. Otherwise, the
     indexes of the visible boundary nodes are returned.
 

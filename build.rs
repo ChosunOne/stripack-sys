@@ -31,11 +31,14 @@ fn main() {
     if target.contains("windows") {
         println!("cargo:rustc-link-search=native=C:/msys64/mingw64/lib");
         println!("cargo:rustc-link-search=native=C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/14");
+        println!("cargo:rustc-link-search=native=C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/15");
         println!("cargo:rustc-link-lib=dylib=gfortran");
         println!("cargo:rustc-link-lib=dylib=quadmath");
     } else if target.contains("darwin") {
         println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
         println!("cargo:rustc-link-search=native=/opt/homebrew/lib/gcc/14");
+        println!("cargo:rustc-link-search=native=/opt/homebrew/lib/gcc/15");
+        println!("cargo:rustc-link-search=native=/opt/homebrew/lib/gcc/current");
         println!("cargo:rustc-link-search=native=/usr/local/lib");
         println!("cargo:rustc-link-lib=gfortran");
     } else {
